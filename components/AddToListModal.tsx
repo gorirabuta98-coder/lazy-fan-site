@@ -11,14 +11,27 @@ interface Playlist {
 
 interface AddToListModalProps {
   videoId: string
+  videoTitle?: string
+  thumbnailUrl?: string
   playlists: Playlist[]
 }
 
-export default function AddToListModal({ videoId, playlists }: AddToListModalProps) {
+export default function AddToListModal({
+  videoId,
+  videoTitle,
+  thumbnailUrl,
+  playlists,
+}: AddToListModalProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
+
+  const videoInput = {
+    id: videoId,
+    title: videoTitle,
+    thumbnail_url: thumbnailUrl,
+  }
 
   // 新規マイリスト作成 ＆ 動画追加
   const handleCreateAndAdd = async () => {
@@ -26,7 +39,7 @@ export default function AddToListModal({ videoId, playlists }: AddToListModalPro
     setIsSubmitting(true)
 
     try {
-      await createPlaylistAndAddVideo(newTitle.trim(), videoId)
+      await createPlaylistAndAddVideo(newTitle.trim(), videoInput)
       setNewTitle('')
       setIsOpen(false)
       router.refresh()
@@ -43,7 +56,7 @@ export default function AddToListModal({ videoId, playlists }: AddToListModalPro
     setIsSubmitting(true)
 
     try {
-      await addVideoToPlaylist(playlistId, videoId)
+      await addVideoToPlaylist(playlistId, videoInput)
       setIsOpen(false)
       router.refresh()
     } catch (error) {
