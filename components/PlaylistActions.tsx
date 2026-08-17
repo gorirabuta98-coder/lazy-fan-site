@@ -1,48 +1,38 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import {
-  getUserPlaylists,
-  createPlaylist,
-  deletePlaylist,
-} from '@/app/actions/playlists'
+import { useState } from 'react'
+import { createPlaylist, deletePlaylist } from '@/app/actions/playlists'
 
 export default function PlaylistActions() {
-  const [playlists, setPlaylists] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [newPlaylistName, setNewPlaylistName] = useState('')
-
-  useEffect(() => {
-    loadPlaylists()
-  }, [])
-
-  const loadPlaylists = async () => {
-    setLoading(true)
-    const data = await getUserPlaylists()
-    setPlaylists(data || [])
-    setLoading(false)
-  }
+  const [loading, setLoading] = useState(false)
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newPlaylistName.trim()) return
+    if (!newPlaylistName.trim() || loading) return
 
+    setLoading(true)
     const res = await createPlaylist(newPlaylistName.trim())
+    setLoading(false)
+
     if (res.success) {
       setNewPlaylistName('')
-      loadPlaylists()
     } else {
-      alert(res.error || '作成に失敗しました')
+      alert((res as any).error || '作成に失敗しました')
     }
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('本当に削除しますか？')) return
+
+    setLoading(true)
     const res = await deletePlaylist(id)
+    setLoading(false)
+
     if (res.success) {
-      loadPlaylists()
+      // 成功時の処理
     } else {
-      alert(res.error || '削除に失敗しました')
+      alert((res as any).error || '削除に失敗しました')
     }
   }
 
@@ -58,32 +48,12 @@ export default function PlaylistActions() {
         />
         <button
           type="submit"
-          className="bg-gray-900 text-white px-4 py-2 rounded-lg text-xs font-bold"
+          disabled={loading || !newPlaylistName.trim()}
+          className="px-4 py-2 bg-black text-white text-sm rounded-lg disabled:opacity-50"
         >
-          作成
+          {loading ? '処理中...' : '作成'}
         </button>
       </form>
-
-      {loading ? (
-        <p className="text-xs text-gray-400">読み込み中...</p>
-      ) : (
-        <div className="space-y-2">
-          {playlists.map((pl) => (
-            <div
-              key={pl.id}
-              className="flex justify-between items-center p-2 border rounded-lg text-sm font-bold"
-            >
-              <span>{pl.name}</span>
-              <button
-                onClick={() => handleDelete(pl.id)}
-                className="text-xs text-red-500 hover:text-red-700 font-bold"
-              >
-                削除
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
 }

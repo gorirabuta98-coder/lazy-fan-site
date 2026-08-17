@@ -9,12 +9,14 @@ export interface VideoInput {
   thumbnailUrl?: string
 }
 
-// 1. 新規マイリスト作成 ＆ 動画追加
 export async function createPlaylistAndAddVideo(name: string, video: VideoInput) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { success: false, error: '認証されていません' }
+    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    
+    if (authErr || !user) {
+      return { success: false, error: `認証エラー: ${authErr?.message || 'ログインしていません'}` }
+    }
 
     const { data: playlist, error: plErr } = await supabase
       .from('playlists')
@@ -22,7 +24,9 @@ export async function createPlaylistAndAddVideo(name: string, video: VideoInput)
       .select()
       .single()
 
-    if (plErr || !playlist) return { success: false, error: plErr?.message || '作成失敗' }
+    if (plErr || !playlist) {
+      return { success: false, error: `プレイリスト作成失敗: ${plErr?.message}` }
+    }
 
     const { error: itemErr } = await supabase.from('playlist_items').insert({
       playlist_id: playlist.id,
@@ -32,53 +36,48 @@ export async function createPlaylistAndAddVideo(name: string, video: VideoInput)
     })
 
     if (itemErr) {
-      await supabase.from('playlist_items').insert({
-        playlist_id: playlist.id,
-        video_id: video.id,
-      })
+      return { success: false, error: `動画保存失敗: ${itemErr.message}` }
     }
 
     revalidatePath('/playlists')
     return { success: true }
   } catch (e: any) {
-    return { success: false, error: e.message || 'エラーが発生しました' }
+    return { success: false, error: `予期せぬエラー: ${e.message}` }
   }
 }
 
-// 2. 既存マイリストへ動画追加
 export async function addVideoToPlaylist(playlistId: string, video: VideoInput) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { success: false, error: '認証されていません' }
+    const { data: { user }, error: authErr } = await supabase.auth.getUser()
 
-    const { error } = await supabase.from('playlist_items').insert({
+    if (authErr || !user) {
+      return { success: false, error: `認証エラー: ${authErr?.message || 'ログインしていません'}` }
+    }
+
+    const { error: itemErr } = await supabase.from('playlist_items').insert({
       playlist_id: playlistId,
       video_id: video.id,
       video_title: video.title || 'YouTube動画',
       thumbnail_url: video.thumbnailUrl || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
     })
 
-    if (error) {
-      await supabase.from('playlist_items').insert({
-        playlist_id: playlistId,
-        video_id: video.id,
-      })
+    if (itemErr) {
+      return { success: false, error: `動画追加失敗: ${itemErr.message}` }
     }
 
     revalidatePath('/playlists')
     return { success: true }
   } catch (e: any) {
-    return { success: false, error: e.message || 'エラーが発生しました' }
+    return { success: false, error: `予期せぬエラー: ${e.message}` }
   }
 }
 
-// 3. 単体マイリスト作成 (PlaylistActions用)
 export async function createPlaylist(name: string) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { success: false, error: '認証されていません' }
+    if (!user) return { success: false, error: '未ログイン' }
 
     const { data: playlist, error } = await supabase
       .from('playlists')
@@ -87,54 +86,34 @@ export async function createPlaylist(name: string) {
       .single()
 
     if (error) return { success: false, error: error.message }
-
     revalidatePath('/playlists')
     return { success: true, playlist }
   } catch (e: any) {
-    return { success: false, error: e.message || 'エラーが発生しました' }
+    return { success: false, error: e.message }
   }
 }
 
-// 4. マイリスト削除
 export async function deletePlaylist(playlistId: string) {
-  try {
-    const supabase = await createClient()
-    const { error } = await supabase.from('playlists').delete().eq('id', playlistId)
-    if (error) return { success: false, error: error.message }
-    revalidatePath('/playlists')
-    return { success: true }
-  } catch (e: any) {
-    return { success: false, error: e.message || 'エラーが発生しました' }
-  }
+  const supabase = await createClient()
+  await supabase.from('playlists').delete().eq('id', playlistId)
+  revalidatePath('/playlists')
+  return { success: true }
 }
 
-// 5. マイリスト名変更
 export async function renamePlaylist(playlistId: string, newName: string) {
-  try {
-    const supabase = await createClient()
-    const { error } = await supabase.from('playlists').update({ name: newName }).eq('id', playlistId)
-    if (error) return { success: false, error: error.message }
-    revalidatePath('/playlists')
-    return { success: true }
-  } catch (e: any) {
-    return { success: false, error: e.message || 'エラーが発生しました' }
-  }
+  const supabase = await createClient()
+  await supabase.from('playlists').update({ name: newName }).eq('id', playlistId)
+  revalidatePath('/playlists')
+  return { success: true }
 }
 
-// 6. 動画の削除
 export async function removeVideoFromPlaylist(playlistId: string, videoId: string) {
-  try {
-    const supabase = await createClient()
-    const { error } = await supabase.from('playlist_items').delete().eq('playlist_id', playlistId).eq('video_id', videoId)
-    if (error) return { success: false, error: error.message }
-    revalidatePath('/playlists')
-    return { success: true }
-  } catch (e: any) {
-    return { success: false, error: e.message || 'エラーが発生しました' }
-  }
+  const supabase = await createClient()
+  await supabase.from('playlist_items').delete().eq('playlist_id', playlistId).eq('video_id', videoId)
+  revalidatePath('/playlists')
+  return { success: true }
 }
 
-// 7. ユーザーのマイリスト一覧を取得
 export async function getUserPlaylists() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -149,7 +128,6 @@ export async function getUserPlaylists() {
   return playlists || []
 }
 
-// 8. マイリスト一覧と動画データを取得
 export async function getPlaylistsWithVideos() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
