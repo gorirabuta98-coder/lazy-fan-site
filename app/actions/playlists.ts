@@ -144,7 +144,7 @@ export async function renamePlaylist(playlistId: string, newName: string) {
   }
 }
 
-// 6. マイリストから特定の動画を削除（1引数・2引数の両方に対応）
+// 6. マイリストから特定の動画を削除
 export async function removeVideoFromPlaylist(playlistIdOrItemId: string, videoId?: string) {
   try {
     const supabase = await createClient()
@@ -198,7 +198,7 @@ export async function getUserPlaylists() {
   return playlists || []
 }
 
-// 8. マイリストと紐づく動画一覧を取得（マイリストページ用）
+// 8. マイリストと紐づく動画一覧を取得（マイリストページ用：確実な2段階取得）
 export async function getPlaylistsWithVideos() {
   const supabase = await createClient()
 
@@ -207,22 +207,47 @@ export async function getPlaylistsWithVideos() {
   } = await supabase.auth.getUser()
   if (!user) return []
 
-  const { data: playlists, error } = await supabase
+  const { data: playlists, error: plError } = await supabase
     .from('playlists')
-    .select(`
-      *,
-      playlist_items (
-        video_id,
-        videos (*)
-      )
-    `)
+    .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  if (error) {
-    console.error('Error fetching playlists with videos:', error)
-    return []
+  if (plError || !playlists || playlists.length === 0) return []
+
+  const playlistIds = playlists.map((p) => p.id)
+
+  const { data: items, error: itemsError } = await supabase
+    .from('playlist_items')
+    .select('*')
+    .in('playlist_id', playlistIds)
+
+  if (itemsError || !items || items.length === 0) {
+    return playlists.map((p) => ({ ...p, playlist_items: [] }))
   }
 
-  return playlists || []
+  const videoIds = Array.from(new Set(items.map((item) => item.video_id)))
+
+  const { data: videos } = await supabase
+    .from('videos')
+    .select('*')
+    .in('id', videoIds)
+
+  const videoMap = new Map((videos || []).map((v) => [v.id, v]))
+
+  return playlists.map((p) => {
+    const pItems = items
+      .filter((item) => item.playlist_id === p.id)
+      .map((item) => ({
+        id: item.id,
+        video_id: item.video_id,
+        videos: videoMap.get(item.video_id) || null,
+      }))
+      .filter((item) => item.videos !== null)
+
+    return {
+      ...p,
+      playlist_items: pItems,
+    }
+  })
 }
