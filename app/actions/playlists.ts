@@ -33,6 +33,7 @@ export async function createPlaylistAndAddVideo(name: string, video: VideoInput)
       video_id: video.id,
       video_title: video.title || 'YouTube動画',
       thumbnail_url: video.thumbnailUrl || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
+      position: 0,
     })
 
     if (itemErr) {
@@ -60,6 +61,7 @@ export async function addVideoToPlaylist(playlistId: string, video: VideoInput) 
       video_id: video.id,
       video_title: video.title || 'YouTube動画',
       thumbnail_url: video.thumbnailUrl || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
+      position: 0,
     })
 
     if (itemErr) {
