@@ -1,83 +1,30 @@
-'use server'
+import { getPlaylistsWithVideos } from '@/app/actions/playlists'
+import PlaylistCard from '@/components/PlaylistCard'
+import PlaylistActions from '@/components/PlaylistActions'
 
-import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
+export default async function PlaylistsPage() {
+  const playlists = await getPlaylistsWithVideos()
 
-// 新規マイリスト作成 ＆ 動画追加
-export async function createPlaylistAndAddVideo(name: string, videoId: string) {
-  const supabase = await createClient()
+  return (
+    <main className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">マイリスト一覧</h1>
+          <PlaylistActions />
+        </div>
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
-
-  // 1. 新しいマイリストを作成
-  const { data: playlist, error: playlistError } = await supabase
-    .from('playlists')
-    .insert({
-      user_id: user.id,
-      name: name,
-    })
-    .select()
-    .single()
-
-  if (playlistError || !playlist) {
-    console.error('Error creating playlist:', playlistError)
-    throw new Error('Failed to create playlist')
-  }
-
-  // 2. 作成したマイリストに動画を追加
-  const { error: itemError } = await supabase.from('playlist_items').insert({
-    playlist_id: playlist.id,
-    video_id: videoId,
-  })
-
-  if (itemError) {
-    console.error('Error adding video to playlist:', itemError)
-    throw new Error('Failed to add video to playlist')
-  }
-
-  revalidatePath('/playlists')
-  return playlist
-}
-
-// 既存マイリストへ動画追加
-export async function addVideoToPlaylist(playlistId: string, videoId: string) {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
-
-  const { error } = await supabase.from('playlist_items').insert({
-    playlist_id: playlistId,
-    video_id: videoId,
-  })
-
-  if (error) {
-    console.error('Error adding video to playlist:', error)
-    throw new Error('Failed to add video to playlist')
-  }
-
-  revalidatePath('/playlists')
-}
-
-// ユーザーのマイリスト一覧を取得
-export async function getUserPlaylists() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return []
-
-  const { data: playlists } = await supabase
-    .from('playlists')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-
-  return playlists || []
+        {playlists.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-2xl border border-gray-200 shadow-sm">
+            <p className="text-gray-500 text-sm">マイリストがまだ作成されていません。</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {playlists.map((playlist) => (
+              <PlaylistCard key={playlist.id} playlist={playlist} />
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  )
 }
