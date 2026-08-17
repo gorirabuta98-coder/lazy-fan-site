@@ -1,182 +1,91 @@
-'use client'
+'use server'
 
-import { useState } from 'react'
-import { getVideosByPart } from '@/app/actions/videos'
-import AddToListModal from '@/components/AddToListModal'
+import { createClient } from '@/lib/supabase/server'
 
-type Video = {
+export interface Video {
   id: string
   title: string
   thumbnail_url: string
   published_at: string
+  is_short?: boolean
 }
 
-interface VideoListProps {
-  initialVideos: Video[]
-  totalCount?: number
-  playlists: any[]
-}
+// 1. 横動画（通常動画）のみを取得（トップ用）
+export async function getVideos(limit = 24) {
+  const supabase = await createClient()
 
-export default function VideoList({
-  initialVideos,
-  totalCount = 0,
-  playlists,
-}: VideoListProps) {
-  const [videos, setVideos] = useState<Video[]>(initialVideos)
-  const [currentPart, setCurrentPart] = useState<number>(1)
-  const [total, setTotal] = useState<number>(totalCount)
-  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const { data, error } = await supabase
+    .from('videos')
+    .select('*')
+    .or('is_short.eq.false,is_short.is.null')
+    .order('published_at', { ascending: false })
+    .limit(limit)
 
-  const totalParts = 10
-  const pageSize = Math.max(1, Math.ceil(total / totalParts))
-
-  const handleSelectPart = async (partNum: number) => {
-    if (partNum === currentPart || isLoading) return
-    setIsLoading(true)
-
-    const res = await getVideosByPart(partNum)
-
-    setVideos(res.videos)
-    if (res.totalCount) setTotal(res.totalCount)
-    setCurrentPart(partNum)
-    setIsLoading(false)
-
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+  if (error) {
+    console.error('Error fetching videos:', error)
+    return []
   }
 
-  const startNum = (currentPart - 1) * pageSize + 1
-  const endNum = Math.min(currentPart * pageSize, total)
+  return (data as Video[]) || []
+}
 
-  return (
-    <section className="space-y-6">
-      {/* Part 選択エリア */}
-      <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            <span>📂 Part を選択して移動</span>
-          </h2>
-          <span className="text-xs bg-red-100 text-red-700 font-bold px-3 py-1 rounded-full">
-            Part {currentPart} 表示中（{startNum}〜{endNum}本目 / 全{total}本）
-          </span>
-        </div>
+// 2. ショート動画のみを取得
+export async function getShorts(limit = 24) {
+  const supabase = await createClient()
 
-        {/* Part 1 〜 Part 10 ボタン */}
-        <div className="flex flex-wrap gap-2 pt-1">
-          {Array.from({ length: totalParts }, (_, i) => i + 1).map((part) => {
-            const isActive = part === currentPart
-            return (
-              <button
-                key={part}
-                onClick={() => handleSelectPart(part)}
-                disabled={isLoading}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 ${
-                  isActive
-                    ? 'bg-red-600 text-white shadow-sm scale-105'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200/60'
-                }`}
-              >
-                Part {part}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+  const { data, error } = await supabase
+    .from('videos')
+    .select('*')
+    .eq('is_short', true)
+    .order('published_at', { ascending: false })
+    .limit(limit)
 
-      {/* ヘッダー */}
-      <div className="flex items-center justify-between pt-2">
-        <h3 className="text-lg font-bold text-gray-900">
-          公式動画一覧 <span className="text-red-600">Part {currentPart}</span>
-        </h3>
-      </div>
+  if (error) {
+    console.error('Error fetching shorts:', error)
+    return []
+  }
 
-      {/* 読み込み中・動画一覧 */}
-      {isLoading ? (
-        <div className="py-24 text-center bg-white rounded-2xl border border-gray-200 shadow-sm">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-red-600 border-t-transparent mb-3"></div>
-          <p className="text-sm font-semibold text-gray-700">
-            Part {currentPart} の動画を読み込んでいます...
-          </p>
-        </div>
-      ) : videos.length === 0 ? (
-        <div className="py-20 text-center bg-white rounded-2xl border border-gray-200 shadow-sm">
-          <p className="text-sm text-gray-500 font-medium">
-            このPartに表示できる動画はありません。
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {videos.map((video) => {
-            const watchUrl = `https://www.youtube.com/watch?v=${video.id}`
+  return (data as Video[]) || []
+}
 
-            return (
-              <div
-                key={video.id}
-                className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-all flex flex-col p-3"
-              >
-                <a
-                  href={watchUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="relative aspect-video group overflow-hidden bg-black rounded-lg"
-                >
-                  <img
-                    src={video.thumbnail_url}
-                    alt={video.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </a>
+// 3. パート指定（分割取得）で横動画と総件数を取得 (VideoList用)
+export async function getVideosByPart(part: number = 1, pageSize: number = 20) {
+  const supabase = await createClient()
 
-                <div className="pt-3 flex flex-col justify-between flex-grow">
-                  <h3 className="font-medium text-sm text-gray-900 line-clamp-2 mb-2">
-                    {video.title}
-                  </h3>
+  const from = (part - 1) * pageSize
+  const to = from + pageSize - 1
 
-                  <div className="mt-auto">
-                    <div className="flex items-center justify-between py-1 text-[11px] text-gray-400">
-                      <span>
-                        {new Date(video.published_at).toLocaleDateString('ja-JP')}
-                      </span>
-                      <a
-                        href={watchUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-red-600 font-semibold hover:underline"
-                      >
-                        YouTubeで見る ↗
-                      </a>
-                    </div>
+  const { data, count, error } = await supabase
+    .from('videos')
+    .select('*', { count: 'exact' })
+    .or('is_short.eq.false,is_short.is.null')
+    .order('published_at', { ascending: false })
+    .range(from, to)
 
-                    <AddToListModal videoId={video.id} playlists={playlists} />
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+  if (error) {
+    console.error('Error fetching videos by part:', error)
+    return { videos: [], totalCount: 0 }
+  }
 
-      {/* 下部 Part 移動ボタン */}
-      <div className="flex items-center justify-between pt-6 border-t border-gray-200">
-        <button
-          onClick={() => handleSelectPart(currentPart - 1)}
-          disabled={currentPart === 1 || isLoading}
-          className="bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-semibold text-xs py-2.5 px-5 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          ← Part {currentPart - 1} に移動
-        </button>
+  return {
+    videos: (data as Video[]) || [],
+    totalCount: count || 0,
+  }
+}
 
-        <span className="text-xs font-bold text-gray-500">
-          Part {currentPart} / {totalParts}
-        </span>
+// 4. 横動画の総件数を取得
+export async function getVideosCount() {
+  const supabase = await createClient()
 
-        <button
-          onClick={() => handleSelectPart(currentPart + 1)}
-          disabled={currentPart === totalParts || isLoading}
-          className="bg-gray-900 hover:bg-gray-800 text-white font-semibold text-xs py-2.5 px-5 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-        >
-          Part {currentPart + 1} に移動 →
-        </button>
-      </div>
-    </section>
-  )
+  const { count, error } = await supabase
+    .from('videos')
+    .select('*', { count: 'exact', head: true })
+    .or('is_short.eq.false,is_short.is.null')
+
+  if (error) {
+    console.error('Error getting videos count:', error)
+    return 0
+  }
+
+  return count || 0
 }
