@@ -15,7 +15,7 @@ export async function createPlaylistAndAddVideo(name: string, video: VideoInput)
     const { data: { user }, error: authErr } = await supabase.auth.getUser()
     
     if (authErr || !user) {
-      return { success: false, error: `認証エラー: ${authErr?.message || 'ログインしていません'}` }
+      return { success: false, error: 'ログインしていません' }
     }
 
     const { data: playlist, error: plErr } = await supabase
@@ -37,6 +37,9 @@ export async function createPlaylistAndAddVideo(name: string, video: VideoInput)
     })
 
     if (itemErr) {
+      if (itemErr.code === '23505' || itemErr.message.includes('duplicate key')) {
+        return { success: false, error: 'この動画はすでにこのマイリストに追加されています' }
+      }
       return { success: false, error: `動画保存失敗: ${itemErr.message}` }
     }
 
@@ -53,7 +56,7 @@ export async function addVideoToPlaylist(playlistId: string, video: VideoInput) 
     const { data: { user }, error: authErr } = await supabase.auth.getUser()
 
     if (authErr || !user) {
-      return { success: false, error: `認証エラー: ${authErr?.message || 'ログインしていません'}` }
+      return { success: false, error: 'ログインしていません' }
     }
 
     const { error: itemErr } = await supabase.from('playlist_items').insert({
@@ -65,6 +68,9 @@ export async function addVideoToPlaylist(playlistId: string, video: VideoInput) 
     })
 
     if (itemErr) {
+      if (itemErr.code === '23505' || itemErr.message.includes('duplicate key')) {
+        return { success: false, error: 'この動画はすでにこのマイリストに追加されています' }
+      }
       return { success: false, error: `動画追加失敗: ${itemErr.message}` }
     }
 
