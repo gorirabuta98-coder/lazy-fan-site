@@ -174,3 +174,26 @@ export async function getPlaylistsWithVideos() {
     }
   })
 }
+// app/actions/playlists.ts の末尾に追加
+
+export async function addMultipleToPlaylist(
+  playlistId: string,
+  videos: { id: string; title: string; thumbnail_url: string }[]
+) {
+  const supabase = await createClient()
+
+  const items = videos.map((v) => ({
+    playlist_id: playlistId,
+    video_id: v.id,
+    video_title: v.title,
+    thumbnail_url: v.thumbnail_url,
+  }))
+
+  const { error } = await supabase.from('playlist_items').upsert(items, {
+    onConflict: 'playlist_id,video_id',
+  })
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/playlists')
+  return { success: true }
+}

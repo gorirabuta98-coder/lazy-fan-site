@@ -1,4 +1,3 @@
-import Header from '@/components/Header'
 import { getPlaylistsWithVideos } from '@/app/actions/playlists'
 import PlaylistCard from '@/components/PlaylistCard'
 
@@ -7,7 +6,7 @@ export default async function PlaylistsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      
       <main className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
         <h1 className="text-2xl font-bold text-gray-900">マイリスト一覧</h1>
 
