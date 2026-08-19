@@ -1,8 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { renamePlaylist, deletePlaylist, removeVideoFromPlaylist } from '@/app/actions/playlists'
+import {
+  updatePlaylistTitle,
+  deletePlaylist,
+  removeFromPlaylist,
+} from '@/app/actions/playlists'
 
 interface Video {
   id: string
@@ -13,13 +17,19 @@ interface Video {
 
 interface PlaylistItem {
   id?: string
+  playlist_id?: string
   video_id: string
-  videos: Video | Video[] | null
+  title?: string
+  thumbnail_url?: string
+  created_at?: string
+  videos?: Video | Video[] | null
 }
 
 interface Playlist {
   id: string
-  name: string
+  title?: string
+  name?: string
+  created_at?: string
   playlist_items?: PlaylistItem[]
 }
 
@@ -27,146 +37,266 @@ interface PlaylistCardProps {
   playlist: Playlist
 }
 
-export default function PlaylistCard({ playlist }: PlaylistCardProps) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [name, setName] = useState(playlist.name)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+export function PlaylistCard({ playlist }: PlaylistCardProps) {
   const router = useRouter()
+  const playlistTitle = playlist.title || playlist.name || '名称未設定'
 
-  const handleRename = async () => {
-    if (!name.trim() || isSubmitting) return
-    setIsSubmitting(true)
-    const res = await renamePlaylist(playlist.id, name.trim())
-    setIsSubmitting(false)
-    if (res?.success) {
-      setIsEditing(false)
-      router.refresh()
+  const [isEditing, setIsEditing] = useState<boolean>(false)
+  const [title, setTitle] = useState<string>(playlistTitle)
+  const [isOpen, setIsOpen] = useState<boolean>(false)
+  const [isProcessing, setIsProcessing] = useState<boolean>(false)
+  const [items, setItems] = useState<PlaylistItem[]>(playlist.playlist_items || [])
+
+  // 親データが更新されたら同期
+  useEffect(() => {
+    setItems(playlist.playlist_items || [])
+  }, [playlist.playlist_items])
+
+  // 1. マイリスト名の変更
+  const handleRename = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!title.trim() || isProcessing) return
+
+    setIsProcessing(true)
+    try {
+      const res = await updatePlaylistTitle(playlist.id, title.trim())
+      if (res.success) {
+        setIsEditing(false)
+        router.refresh()
+      } else {
+        alert(res.error || '名前の変更に失敗しました。')
+      }
+    } catch (error) {
+      console.error('マイリスト名変更エラー:', error)
+      alert('エラーが発生しました。')
+    } finally {
+      setIsProcessing(false)
     }
   }
 
+  // 2. マイリスト全体の削除
   const handleDeletePlaylist = async () => {
-    if (!confirm('このマイリストを削除してもよろしいですか？')) return
-    setIsSubmitting(true)
-    const res = await deletePlaylist(playlist.id)
-    setIsSubmitting(false)
-    if (res?.success) {
-      router.refresh()
+    if (!window.confirm(`「${playlistTitle}」を削除してもよろしいですか？`)) return
+
+    setIsProcessing(true)
+    try {
+      const res = await deletePlaylist(playlist.id)
+      if (res.success) {
+        router.refresh()
+      } else {
+        alert(res.error || 'マイリストの削除に失敗しました。')
+      }
+    } catch (error) {
+      console.error('マイリスト削除エラー:', error)
+      alert('エラーが発生しました。')
+    } finally {
+      setIsProcessing(false)
     }
   }
 
-  const handleRemoveVideo = async (videoId: string) => {
-    setIsSubmitting(true)
-    const res = await removeVideoFromPlaylist(playlist.id, videoId)
-    setIsSubmitting(false)
-    if (res?.success) {
-      router.refresh()
+  // 3. 動画の個別削除（即時画面反映）
+  const handleRemoveVideo = async (videoId: string, videoTitle: string) => {
+    if (!window.confirm(`「${videoTitle}」をこのマイリストから削除しますか？`)) return
+
+    setIsProcessing(true)
+    try {
+      const res = await removeFromPlaylist(playlist.id, videoId)
+      if (res.success) {
+        // 即座にローカル状態から除外（即時消去）
+        setItems((prev) => prev.filter((item) => item.video_id !== videoId))
+        router.refresh()
+      } else {
+        alert(res.error || '動画の削除に失敗しました。')
+      }
+    } catch (error) {
+      console.error('動画削除エラー:', error)
+      alert('エラーが発生しました。')
+    } finally {
+      setIsProcessing(false)
     }
   }
 
-  const items = playlist.playlist_items || []
+  const itemCount = items.length
 
   return (
-    <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
-      {/* ヘッダー部分 */}
-      <div className="flex items-center justify-between gap-2 border-b pb-4">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
+      {/* カードヘッダー */}
+      <div className="p-5 space-y-4">
         {isEditing ? (
-          <div className="flex items-center gap-2 flex-1">
+          <form onSubmit={handleRename} className="flex gap-2 items-center">
             <input
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={isProcessing}
+              className="flex-1 text-sm font-bold border border-gray-300 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-500"
+              autoFocus
             />
             <button
-              onClick={handleRename}
-              disabled={isSubmitting}
-              className="px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 disabled:opacity-50"
+              type="submit"
+              disabled={isProcessing || !title.trim()}
+              className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50 whitespace-nowrap"
             >
               保存
             </button>
             <button
+              type="button"
               onClick={() => {
                 setIsEditing(false)
-                setName(playlist.name)
+                setTitle(playlistTitle)
               }}
-              className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-200"
+              disabled={isProcessing}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3 py-1.5 rounded-xl transition-colors whitespace-nowrap"
             >
               キャンセル
             </button>
-          </div>
+          </form>
         ) : (
-          <div className="flex items-center justify-between w-full">
-            <h2 className="text-lg font-bold text-gray-900 truncate">{playlist.name}</h2>
-            <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">📁</span>
+                <h3 className="text-base font-extrabold text-gray-900 line-clamp-1">
+                  {playlistTitle}
+                </h3>
+              </div>
+              <p className="text-xs text-gray-500 font-medium">
+                動画 {itemCount} 件
+              </p>
+            </div>
+
+            {/* マイリスト本体の操作ボタン */}
+            <div className="flex items-center gap-1.5">
               <button
+                type="button"
                 onClick={() => setIsEditing(true)}
-                className="text-xs text-gray-500 hover:text-gray-700 font-medium px-2 py-1 rounded bg-gray-50 hover:bg-gray-100"
+                title="名前を変更"
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-xs font-bold"
               >
-                編集
+                ✏️
               </button>
               <button
+                type="button"
                 onClick={handleDeletePlaylist}
-                disabled={isSubmitting}
-                className="text-xs text-red-600 hover:text-red-700 font-medium px-2 py-1 rounded bg-red-50 hover:bg-red-100"
+                disabled={isProcessing}
+                title="マイリストを削除"
+                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-xs font-bold disabled:opacity-50"
               >
-                削除
+                🗑️
               </button>
             </div>
           </div>
         )}
+
+        {/* サムネイルプレビュー */}
+        {itemCount > 0 && (
+          <div
+            onClick={() => setIsOpen(!isOpen)}
+            className="grid grid-cols-3 gap-2 cursor-pointer group"
+          >
+            {items.slice(0, 3).map((item, idx) => {
+              const thumb =
+                item.thumbnail_url ||
+                (Array.isArray(item.videos)
+                  ? item.videos[0]?.thumbnail_url
+                  : item.videos?.thumbnail_url) ||
+                ''
+              return (
+                <div
+                  key={item.id || item.video_id || idx}
+                  className="aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-100 relative"
+                >
+                  {thumb ? (
+                    <img
+                      src={thumb}
+                      alt={item.title || 'サムネイル'}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">
+                      No Image
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* 開閉ボタン */}
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1 border border-gray-200"
+        >
+          <span>{isOpen ? '▲ 動画一覧を閉じる' : '▼ 動画一覧を表示'}</span>
+        </button>
       </div>
 
-      {/* 動画リスト */}
-      {items.length === 0 ? (
-        <p className="text-xs text-gray-400 text-center py-6">動画が追加されていません</p>
-      ) : (
-        <div className="space-y-3">
-          {items.map((item, index) => {
-            const video = Array.isArray(item.videos) ? item.videos[0] : item.videos
-            if (!video) return null
+      {/* 動画一覧＆個別削除ボタンエリア */}
+      {isOpen && (
+        <div className="border-t border-gray-100 bg-gray-50/50 p-4 space-y-3 max-h-96 overflow-y-auto">
+          {items.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-4 font-bold">
+              このマイリストには動画が入っていません。
+            </p>
+          ) : (
+            items.map((item) => {
+              const itemTitle =
+                item.title ||
+                (Array.isArray(item.videos)
+                  ? item.videos[0]?.title
+                  : item.videos?.title) ||
+                '無題'
+              const itemThumb =
+                item.thumbnail_url ||
+                (Array.isArray(item.videos)
+                  ? item.videos[0]?.thumbnail_url
+                  : item.videos?.thumbnail_url) ||
+                ''
 
-            // item.id が取れない場合も一意な key になるよう安全に割り当て
-            const itemKey = item.id || `${item.video_id}-${index}`
-
-            return (
-              <div
-                key={itemKey}
-                className="border border-gray-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow bg-gray-50/50 p-3 flex gap-3 items-center justify-between"
-              >
-                <div className="flex items-center gap-3 overflow-hidden flex-1">
-                  <img
-                    src={video.thumbnail_url}
-                    alt={video.title}
-                    className="w-24 h-14 object-cover rounded-lg shrink-0"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-gray-800 line-clamp-2 leading-tight">
-                      {video.title}
-                    </p>
-                    <a
-                      href={`https://www.youtube.com/watch?v=${video.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] text-red-600 hover:underline inline-block mt-1 font-semibold"
-                    >
-                      YouTubeで見る ↗
-                    </a>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleRemoveVideo(video.id)}
-                  disabled={isSubmitting}
-                  className="text-xs text-gray-400 hover:text-red-600 p-2 shrink-0 transition-colors"
-                  title="動画を削除"
+              return (
+                <div
+                  key={item.id || item.video_id}
+                  className="flex items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-gray-200 hover:border-gray-300 transition-all"
                 >
-                  ✕
-                </button>
-              </div>
-            )
-          })}
+                  <a
+                    href={`https://www.youtube.com/watch?v=${item.video_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 flex-1 min-w-0 group"
+                  >
+                    {itemThumb && (
+                      <img
+                        src={itemThumb}
+                        alt={itemTitle}
+                        className="w-16 h-10 object-cover rounded-lg border border-gray-100 shrink-0 group-hover:opacity-90"
+                      />
+                    )}
+                    <span className="text-xs font-bold text-gray-800 line-clamp-2 leading-snug group-hover:text-red-600 transition-colors">
+                      {itemTitle}
+                    </span>
+                  </a>
+
+                  {/* 動画ごとの削除ボタン */}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveVideo(item.video_id, itemTitle)}
+                    disabled={isProcessing}
+                    title="この動画をマイリストから削除"
+                    className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 rounded-lg transition-colors text-xs font-bold shrink-0 flex items-center gap-1 border border-red-100 disabled:opacity-50"
+                  >
+                    <span>🗑️</span>
+                    <span>削除</span>
+                  </button>
+                </div>
+              )
+            })
+          )}
         </div>
       )}
     </div>
   )
 }
+
+export default PlaylistCard

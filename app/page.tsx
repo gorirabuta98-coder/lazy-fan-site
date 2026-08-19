@@ -1,11 +1,13 @@
 import { getVideosByPart } from '@/app/actions/videos'
-import { getPlaylistsWithVideos } from '@/app/actions/playlists' // ← 関数名を変更
+import { getPlaylistsWithVideos } from '@/app/actions/playlists'
 import VideoList from '@/components/VideoList'
 
 export default async function HomePage() {
+  const PAGE_SIZE = 50 // 1 Part あたり 50件に設定
+
   const [videosData, playlists] = await Promise.all([
-    getVideosByPart(1, 20),
-    getPlaylistsWithVideos(), // ← 関数名を変更
+    getVideosByPart(1, PAGE_SIZE),
+    getPlaylistsWithVideos(),
   ])
 
   return (
@@ -14,6 +16,7 @@ export default async function HomePage() {
         initialVideos={videosData.videos}
         totalCount={videosData.totalCount}
         playlists={playlists}
+        pageSize={PAGE_SIZE}
       />
     </main>
   )

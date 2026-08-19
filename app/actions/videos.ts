@@ -7,121 +7,52 @@ export interface Video {
   id: string
   title: string
   thumbnail_url: string
-  published_at: string
+  published_at?: string
+  created_at?: string
   is_short?: boolean
 }
 
-// ISO 8601 形式の動画時間 (PT1M30S など) を秒数に変換するヘルパー関数
-function parseISO8601Duration(duration: string): number {
-  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
-  if (!match) return 0
-  const hours = parseInt(match[1] || '0', 10)
-  const minutes = parseInt(match[2] || '0', 10)
-  const seconds = parseInt(match[3] || '0', 10)
-  return hours * 3600 + minutes * 60 + seconds
-}
-
-// --- 1. YouTube Data API から最新・過去動画を一括同期する処理 ---
-export async function syncVideosFromYouTube() {
+/**
+ * 動画の総件数を取得する
+ */
+export async function getVideosCount(): Promise<number> {
   try {
-    const apiKey = process.env.YOUTUBE_API_KEY
-    const channelId = process.env.YOUTUBE_CHANNEL_ID
-
-    if (!apiKey || !channelId) {
-      return { success: false, error: 'YOUTUBE_API_KEY または YOUTUBE_CHANNEL_ID が設定されていません' }
-    }
-
     const supabase = await createClient()
-    let nextPageToken = ''
-    let totalFetched = 0
+    const { count, error } = await supabase
+      .from('videos')
+      .select('*', { count: 'exact', head: true })
 
-    const channelRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${apiKey}`
-    )
-    const channelData = await channelRes.json()
-
-    if (!channelData.items || channelData.items.length === 0) {
-      return { success: false, error: 'チャンネル情報の取得に失敗しました' }
+    if (error) {
+      console.error('動画総数取得エラー:', error)
+      return 0
     }
 
-    const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads
-
-    for (let i = 0; i < 10; i++) {
-      const playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=50&pageToken=${nextPageToken}&key=${apiKey}`
-      const playlistRes = await fetch(playlistUrl)
-      const playlistData = await playlistRes.json()
-
-      if (!playlistData.items || playlistData.items.length === 0) break
-
-      const videoIds = playlistData.items
-        .map((item: any) => item.snippet.resourceId.videoId)
-        .join(',')
-
-      const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoIds}&key=${apiKey}`
-      const detailsRes = await fetch(detailsUrl)
-      const detailsData = await detailsRes.json()
-
-      if (!detailsData.items) break
-
-      const videosToUpsert = detailsData.items.map((item: any) => {
-        const title = item.snippet.title || ''
-        const durationSec = parseISO8601Duration(item.contentDetails?.duration || '')
-
-        const isShort = (durationSec > 0 && durationSec <= 60) || title.includes('#')
-
-        return {
-          id: item.id,
-          title: title,
-          thumbnail_url:
-            item.snippet.thumbnails.maxres?.url ||
-            item.snippet.thumbnails.high?.url ||
-            item.snippet.thumbnails.medium?.url ||
-            `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
-          published_at: item.snippet.publishedAt,
-          is_short: isShort,
-        }
-      })
-
-      const { error } = await supabase
-        .from('videos')
-        .upsert(videosToUpsert, { onConflict: 'id' })
-
-      if (error) {
-        console.error('Supabase Upsert Error:', error)
-      }
-
-      totalFetched += videosToUpsert.length
-      nextPageToken = playlistData.nextPageToken || ''
-      if (!nextPageToken) break
-    }
-
-    revalidatePath('/')
-    return { success: true, count: totalFetched }
-  } catch (err: any) {
-    console.error('Sync Error:', err)
-    return { success: false, error: err.message }
+    return count || 0
+  } catch (err) {
+    console.error('getVideosCount 例外:', err)
+    return 0
   }
 }
 
-// --- 2. データベースからの取得アクション ---
-
-export async function getVideosByPart(part: number = 1, pageSize: number = 20) {
+/**
+ * 指定された Part（ページ）の動画一覧と総件数を取得する
+ * @param part 取得する Part 番号 (1〜)
+ * @param pageSize 1 Part あたりの件数 (デフォルト 50件)
+ */
+export async function getVideosByPart(part: number = 1, pageSize: number = 50) {
   try {
     const supabase = await createClient()
-
     const from = (part - 1) * pageSize
     const to = from + pageSize - 1
 
     const { data, count, error } = await supabase
       .from('videos')
       .select('*', { count: 'exact' })
-      
-    
       .order('published_at', { ascending: false })
       .range(from, to)
 
     if (error) {
-      console.error('Error fetching videos by part:', error)
+      console.error('getVideosByPart DBエラー:', error)
       return { videos: [], totalCount: 0 }
     }
 
@@ -129,77 +60,146 @@ export async function getVideosByPart(part: number = 1, pageSize: number = 20) {
       videos: (data as Video[]) || [],
       totalCount: count || 0,
     }
-  } catch (e) {
-    console.error('getVideosByPart failed:', e)
+  } catch (err) {
+    console.error('getVideosByPart 例外:', err)
     return { videos: [], totalCount: 0 }
   }
 }
 
-export async function getVideos(limit = 24) {
+/**
+ * 最新の動画を件数指定で取得する
+ */
+export async function getVideos(limit: number = 20): Promise<Video[]> {
   try {
     const supabase = await createClient()
-
     const { data, error } = await supabase
       .from('videos')
       .select('*')
-      
-      
       .order('published_at', { ascending: false })
       .limit(limit)
 
     if (error) {
-      console.error('Error fetching videos:', error)
+      console.error('getVideos DBエラー:', error)
       return []
     }
 
     return (data as Video[]) || []
-  } catch (e) {
-    console.error('getVideos failed:', e)
+  } catch (err) {
+    console.error('getVideos 例外:', err)
     return []
   }
 }
 
-export async function getShorts(limit = 24) {
-  try {
-    const supabase = await createClient()
+/**
+ * YouTube APIからチャンネル内の全動画を取得し、Supabaseに同期する
+ * nextPageTokenを利用して最新から過去の動画まで最後まで全件取得・更新します
+ */
+export async function syncVideosFromYouTube() {
+  const apiKey = process.env.YOUTUBE_API_KEY
+  const channelId = process.env.YOUTUBE_CHANNEL_ID
 
-    const { data, error } = await supabase
-      .from('videos')
-      .select('*')
-      .or('is_short.eq.true,title.ilike.%#%')
-      .order('published_at', { ascending: false })
-      .limit(limit)
-
-    if (error) {
-      console.error('Error fetching shorts:', error)
-      return []
+  if (!apiKey || !channelId) {
+    return {
+      success: false,
+      error: 'YOUTUBE_API_KEY または YOUTUBE_CHANNEL_ID が設定されていません',
     }
-
-    return (data as Video[]) || []
-  } catch (e) {
-    console.error('getShorts failed:', e)
-    return []
   }
-}
 
-export async function getVideosCount() {
+  const supabase = await createClient()
+
   try {
-    const supabase = await createClient()
+    // 1. チャンネル情報からアップロード動画リスト (Uploads Playlist ID) を取得
+    const channelUrl = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${apiKey}`
+    const channelRes = await fetch(channelUrl)
+    const channelData = await channelRes.json()
 
-    const { count, error } = await supabase
-      .from('videos')
-      .select('*', { count: 'exact', head: true })
-      
-      .not('title', 'ilike', '%#%')
-
-    if (error) {
-      console.error('Error getting videos count:', error)
-      return 0
+    if (!channelRes.ok) {
+      throw new Error(channelData.error?.message || 'YouTube APIレスポンスエラー')
     }
 
-    return count || 0
-  } catch (e) {
-    console.error('getVideosCount failed:', e)
-    return 0
+    const uploadsListId =
+      channelData.items?.[0]?.contentDetails?.relatedPlaylists?.uploads
+
+    if (!uploadsListId) {
+      return {
+        success: false,
+        error: 'チャンネルのアップロード再生リストIDが見つかりませんでした',
+      }
+    }
+
+    let nextPageToken: string | undefined = ''
+    let totalSynced = 0
+    let pageCount = 0
+
+    // 2. nextPageTokenがなくなるまで全動画をループ同期
+    do {
+      let playlistUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsListId}&maxResults=50&key=${apiKey}`
+      if (nextPageToken) {
+        playlistUrl += `&pageToken=${nextPageToken}`
+      }
+
+      const playlistRes = await fetch(playlistUrl)
+      const playlistData = await playlistRes.json()
+
+      if (!playlistRes.ok) {
+        console.error('PlaylistItems APIエラー:', playlistData)
+        throw new Error(playlistData.error?.message || '動画リスト取得エラー')
+      }
+
+      if (!playlistData.items || playlistData.items.length === 0) {
+        break
+      }
+
+      const videosToUpsert = playlistData.items
+        .filter((item: any) => item.snippet?.resourceId?.videoId)
+        .map((item: any) => {
+          const snippet = item.snippet
+          const videoId = snippet.resourceId.videoId
+          const thumbnails = snippet.thumbnails
+
+          return {
+            id: videoId,
+            title: snippet.title || '無題',
+            thumbnail_url:
+              thumbnails?.maxres?.url ||
+              thumbnails?.high?.url ||
+              thumbnails?.medium?.url ||
+              thumbnails?.default?.url ||
+              '',
+            published_at: snippet.publishedAt,
+          }
+        })
+
+      if (videosToUpsert.length > 0) {
+        const { error: upsertError } = await supabase
+          .from('videos')
+          .upsert(videosToUpsert, {
+            onConflict: 'id',
+          })
+
+        if (upsertError) {
+          console.error('Supabase Upsert エラー:', upsertError)
+          throw new Error(`DB保存エラー: ${upsertError.message}`)
+        }
+
+        totalSynced += videosToUpsert.length
+      }
+
+      pageCount++
+      nextPageToken = playlistData.nextPageToken
+    } while (nextPageToken)
+
+    revalidatePath('/')
+    return {
+      success: true,
+      count: totalSynced,
+      pages: pageCount,
+    }
+  } catch (error: any) {
+    console.error('YouTube同期処理で例外が発生しました:', error)
+    return {
+      success: false,
+      error: error.message || '同期処理中に不明なエラーが発生しました',
+    }
   }
 }

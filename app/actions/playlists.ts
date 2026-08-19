@@ -3,197 +3,285 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-export interface VideoInput {
+export interface PlaylistItem {
+  id?: string
+  playlist_id: string
+  video_id: string
+  title: string
+  thumbnail_url: string
+  created_at?: string
+}
+
+export interface Playlist {
   id: string
-  title?: string
-  thumbnailUrl?: string
+  title: string
+  created_at?: string
+  playlist_items?: PlaylistItem[]
 }
 
-export async function createPlaylistAndAddVideo(name: string, video: VideoInput) {
+/**
+ * すべてのマイリスト一覧を取得する
+ */
+export async function getPlaylists(): Promise<Playlist[]> {
   try {
     const supabase = await createClient()
-    const { data: { user }, error: authErr } = await supabase.auth.getUser()
-    
-    if (authErr || !user) {
-      return { success: false, error: 'ログインしていません' }
-    }
-
-    const { data: playlist, error: plErr } = await supabase
+    const { data, error } = await supabase
       .from('playlists')
-      .insert({ user_id: user.id, name })
-      .select()
-      .single()
+      .select('*')
+      .order('created_at', { ascending: false })
 
-    if (plErr || !playlist) {
-      return { success: false, error: `プレイリスト作成失敗: ${plErr?.message}` }
+    if (error) {
+      console.error('getPlaylists DBエラー:', error)
+      return []
     }
 
-    const { error: itemErr } = await supabase.from('playlist_items').insert({
-      playlist_id: playlist.id,
-      video_id: video.id,
-      video_title: video.title || 'YouTube動画',
-      thumbnail_url: video.thumbnailUrl || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
-      position: 0,
-    })
-
-    if (itemErr) {
-      if (itemErr.code === '23505' || itemErr.message.includes('duplicate key')) {
-        return { success: false, error: 'この動画はすでにこのマイリストに追加されています' }
-      }
-      return { success: false, error: `動画保存失敗: ${itemErr.message}` }
-    }
-
-    revalidatePath('/playlists')
-    return { success: true }
-  } catch (e: any) {
-    return { success: false, error: `予期せぬエラー: ${e.message}` }
+    return (data as Playlist[]) || []
+  } catch (err) {
+    console.error('getPlaylists 例外エラー:', err)
+    return []
   }
 }
 
-export async function addVideoToPlaylist(playlistId: string, video: VideoInput) {
-  try {
-    const supabase = await createClient()
-    const { data: { user }, error: authErr } = await supabase.auth.getUser()
-
-    if (authErr || !user) {
-      return { success: false, error: 'ログインしていません' }
-    }
-
-    const { error: itemErr } = await supabase.from('playlist_items').insert({
-      playlist_id: playlistId,
-      video_id: video.id,
-      video_title: video.title || 'YouTube動画',
-      thumbnail_url: video.thumbnailUrl || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
-      position: 0,
-    })
-
-    if (itemErr) {
-      if (itemErr.code === '23505' || itemErr.message.includes('duplicate key')) {
-        return { success: false, error: 'この動画はすでにこのマイリストに追加されています' }
-      }
-      return { success: false, error: `動画追加失敗: ${itemErr.message}` }
-    }
-
-    revalidatePath('/playlists')
-    return { success: true }
-  } catch (e: any) {
-    return { success: false, error: `予期せぬエラー: ${e.message}` }
-  }
-}
-
-export async function createPlaylist(name: string) {
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { success: false, error: '未ログイン' }
-
-    const { data: playlist, error } = await supabase
-      .from('playlists')
-      .insert({ user_id: user.id, name })
-      .select()
-      .single()
-
-    if (error) return { success: false, error: error.message }
-    revalidatePath('/playlists')
-    return { success: true, playlist }
-  } catch (e: any) {
-    return { success: false, error: e.message }
-  }
-}
-
-export async function deletePlaylist(playlistId: string) {
-  const supabase = await createClient()
-  await supabase.from('playlists').delete().eq('id', playlistId)
-  revalidatePath('/playlists')
-  return { success: true }
-}
-
-export async function renamePlaylist(playlistId: string, newName: string) {
-  const supabase = await createClient()
-  await supabase.from('playlists').update({ name: newName }).eq('id', playlistId)
-  revalidatePath('/playlists')
-  return { success: true }
-}
-
-export async function removeVideoFromPlaylist(playlistId: string, videoId: string) {
-  const supabase = await createClient()
-  await supabase.from('playlist_items').delete().eq('playlist_id', playlistId).eq('video_id', videoId)
-  revalidatePath('/playlists')
-  return { success: true }
-}
-
-export async function getUserPlaylists() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
-
-  const { data: playlists } = await supabase
-    .from('playlists')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-
-  return playlists || []
-}
-
+/**
+ * マイリスト一覧を、含まれる動画データと一緒に取得する
+ */
 export async function getPlaylistsWithVideos() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('playlists')
+      .select(`
+        *,
+        playlist_items (*)
+      `)
+      .order('created_at', { ascending: false })
 
-  const { data: playlists } = await supabase
-    .from('playlists')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-
-  if (!playlists || playlists.length === 0) return []
-
-  const playlistIds = playlists.map(p => p.id)
-  const { data: items } = await supabase
-    .from('playlist_items')
-    .select('*')
-    .in('playlist_id', playlistIds)
-
-  return playlists.map(p => {
-    const pItems = (items || [])
-      .filter(i => i.playlist_id === p.id)
-      .map(i => ({
-        id: i.id,
-        video_id: i.video_id,
-        videos: {
-          id: i.video_id,
-          title: i.video_title || 'YouTube動画',
-          thumbnail_url: i.thumbnail_url || `https://i.ytimg.com/vi/${i.video_id}/hqdefault.jpg`,
-        }
-      }))
-
-    return {
-      ...p,
-      playlist_items: pItems
+    if (error) {
+      console.error('getPlaylistsWithVideos DBエラー:', error)
+      return []
     }
-  })
-}
-// app/actions/playlists.ts の末尾に追加
 
+    return data || []
+  } catch (err) {
+    console.error('getPlaylistsWithVideos 例外エラー:', err)
+    return []
+  }
+}
+
+/**
+ * IDを指定して特定のマイリストと、その中に含まれる動画を取得する
+ */
+export async function getPlaylistById(playlistId: string) {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('playlists')
+      .select(`
+        *,
+        playlist_items (*)
+      `)
+      .eq('id', playlistId)
+      .single()
+
+    if (error) {
+      console.error('getPlaylistById DBエラー:', error)
+      return null
+    }
+
+    return data
+  } catch (err) {
+    console.error('getPlaylistById 例外エラー:', err)
+    return null
+  }
+}
+
+/**
+ * 新しいマイリストを作成する
+ */
+export async function createPlaylist(title: string) {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('playlists')
+      .insert([{ title }])
+      .select()
+      .single()
+
+    if (error) {
+      console.error('createPlaylist DBエラー:', error)
+      return { success: false, playlist: null, error: error.message }
+    }
+
+    revalidatePath('/')
+    revalidatePath('/playlists')
+    return { success: true, playlist: data, error: null }
+  } catch (err: any) {
+    console.error('createPlaylist 例外エラー:', err)
+    return { success: false, playlist: null, error: err.message || '不明なエラー' }
+  }
+}
+
+/**
+ * マイリストのタイトルを更新（変更）する
+ */
+export async function updatePlaylistTitle(playlistId: string, newTitle: string) {
+  try {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('playlists')
+      .update({ title: newTitle })
+      .eq('id', playlistId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('updatePlaylistTitle DBエラー:', error)
+      return { success: false, error: error.message }
+    }
+
+    revalidatePath('/')
+    revalidatePath('/playlists')
+    revalidatePath(`/playlists/${playlistId}`)
+    return { success: true, playlist: data, error: null }
+  } catch (err: any) {
+    console.error('updatePlaylistTitle 例外エラー:', err)
+    return { success: false, error: err.message || '不明なエラー' }
+  }
+}
+
+/**
+ * マイリストを削除する（紐づく動画アイテムも削除）
+ */
+export async function deletePlaylist(playlistId: string) {
+  try {
+    const supabase = await createClient()
+
+    // 1. 紐づく動画アイテムを削除
+    await supabase.from('playlist_items').delete().eq('playlist_id', playlistId)
+
+    // 2. マイリスト本体を削除
+    const { error } = await supabase.from('playlists').delete().eq('id', playlistId)
+
+    if (error) {
+      console.error('deletePlaylist DBエラー:', error)
+      return { success: false, error: error.message }
+    }
+
+    revalidatePath('/')
+    revalidatePath('/playlists')
+    return { success: true, error: null }
+  } catch (err: any) {
+    console.error('deletePlaylist 例外エラー:', err)
+    return { success: false, error: err.message || '不明なエラー' }
+  }
+}
+
+/**
+ * 単一の動画をマイリストに追加する
+ */
+export async function addToPlaylist(
+  playlistId: string,
+  video: { id: string; title: string; thumbnail_url: string }
+) {
+  try {
+    const supabase = await createClient()
+    const { error } = await supabase.from('playlist_items').upsert(
+      {
+        playlist_id: playlistId,
+        video_id: video.id,
+        title: video.title,
+        thumbnail_url: video.thumbnail_url,
+      },
+      { onConflict: 'playlist_id,video_id' }
+    )
+
+    if (error) {
+      console.error('addToPlaylist DBエラー:', error)
+      return { success: false, error: error.message }
+    }
+
+    revalidatePath('/')
+    revalidatePath('/playlists')
+    revalidatePath(`/playlists/${playlistId}`)
+    return { success: true, error: null }
+  } catch (err: any) {
+    console.error('addToPlaylist 例外エラー:', err)
+    return { success: false, error: err.message || '不明なエラー' }
+  }
+}
+
+/**
+ * 複数の動画を一括でマイリストに追加する（エラー対策強化版）
+ */
 export async function addMultipleToPlaylist(
   playlistId: string,
-  videos: { id: string; title: string; thumbnail_url: string }[]
+  videos: { id: string; title: string; thumbnail_url?: string; thumbnail?: string }[]
 ) {
+  try {
+    const supabase = await createClient()
+
+    // 1. 既にこのマイリストに存在する動画IDを取得
+    const { data: existingItems, error: fetchError } = await supabase
+      .from('playlist_items')
+      .select('video_id')
+      .eq('playlist_id', playlistId)
+
+    if (fetchError) {
+      console.error('既存アイテム取得エラー:', fetchError)
+      return { success: false, error: fetchError.message }
+    }
+
+    const existingVideoIds = new Set(existingItems?.map((item) => item.video_id) || [])
+
+    // 2. まだ追加されていない動画だけを抽出 ＆ データのフォーマット補正
+    const newItems = videos
+      .filter((v) => v.id && !existingVideoIds.has(v.id))
+      .map((v) => ({
+        playlist_id: playlistId,
+        video_id: v.id,
+        title: v.title || '無題',
+        thumbnail_url: v.thumbnail_url || v.thumbnail || '',
+      }))
+
+    // 追加する対象がなければ成功として返す
+    if (newItems.length === 0) {
+      return { success: true, error: null }
+    }
+
+    // 3. insert で安全に追加（onConflictに依存しない）
+    const { error: insertError } = await supabase
+      .from('playlist_items')
+      .insert(newItems)
+
+    if (insertError) {
+      console.error('一括追加 insert エラー:', insertError)
+      return { success: false, error: insertError.message }
+    }
+
+    revalidatePath('/')
+    revalidatePath('/playlists')
+    revalidatePath(`/playlists/${playlistId}`)
+    return { success: true, error: null }
+  } catch (err: any) {
+    console.error('addMultipleToPlaylist 例外エラー:', err)
+    return { success: false, error: err.message || '不明なエラーが発生しました' }
+  }
+}
+// マイリストから個別の動画を削除
+export async function removeFromPlaylist(playlistId: string, videoId: string) {
   const supabase = await createClient()
 
-  const items = videos.map((v) => ({
-    playlist_id: playlistId,
-    video_id: v.id,
-    video_title: v.title,
-    thumbnail_url: v.thumbnail_url,
-  }))
+  const { error } = await supabase
+    .from('playlist_items')
+    .delete()
+    .eq('playlist_id', playlistId)
+    .eq('video_id', videoId)
 
-  const { error } = await supabase.from('playlist_items').upsert(items, {
-    onConflict: 'playlist_id,video_id',
-  })
+  if (error) {
+    console.error('removeFromPlaylist エラー:', error)
+    return { success: false, error: error.message }
+  }
 
-  if (error) throw new Error(error.message)
   revalidatePath('/playlists')
   return { success: true }
 }
