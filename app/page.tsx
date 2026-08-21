@@ -1,6 +1,6 @@
 import { getVideosByPart } from '@/app/actions/videos'
 import { getPlaylistsWithVideos } from '@/app/actions/playlists'
-import VideoList from '@/components/VideoList'
+import { VideoList } from '@/components/VideoList'
 
 export default async function HomePage() {
   const PAGE_SIZE = 50 // 1 Part あたり 50件に設定
