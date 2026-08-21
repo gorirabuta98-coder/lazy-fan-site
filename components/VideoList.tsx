@@ -155,7 +155,7 @@ export function VideoList({
                   </h3>
                   {video.published_at && (
                     <p className="text-[11px] text-gray-400">
-                      {video.published_at}
+                      {video.published_at.split('T')[0]}
                     </p>
                   )}
                 </div>
