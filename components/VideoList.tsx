@@ -30,6 +30,8 @@ export function VideoList({
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
+  const Modal = AddToListModal as any
+
   const totalParts = Math.ceil(totalCount / pageSize) || 54
   const parts = Array.from({ length: totalParts }, (_, i) => i + 1)
 
@@ -172,7 +174,7 @@ export function VideoList({
       </div>
 
       {isModalOpen && selectedVideo && (
-        <AddToListModal
+        <Modal
           videoId={selectedVideo.id}
           playlists={playlists}
           onClose={() => setIsModalOpen(false)}

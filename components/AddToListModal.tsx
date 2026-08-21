@@ -15,6 +15,7 @@ interface AddToListModalProps {
   videoId: string
   videoTitle: string
   thumbnailUrl: string
+  onClose: () => void
   playlists?: PlaylistWithItems[]
 }
 
@@ -22,6 +23,7 @@ export default function AddToListModal({
   videoId,
   videoTitle,
   thumbnailUrl,
+  onClose,
   playlists = [],
 }: AddToListModalProps) {
   const [isOpen, setIsOpen] = useState<boolean>(false)
