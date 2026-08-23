@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { getPlaylistsWithVideos } from '@/app/actions/playlists'
 import { getDeviceId } from '@/lib/deviceId'
 import AddToListModal, { PlaylistWithItems } from './AddToListModal'
@@ -18,6 +19,7 @@ interface VideoListProps {
   totalCount: number
   playlists: any[]
   pageSize: number
+  currentPart: number
 }
 
 export function VideoList({
@@ -25,9 +27,11 @@ export function VideoList({
   totalCount,
   playlists,
   pageSize,
+  currentPart,
 }: VideoListProps) {
+  const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedPart, setSelectedPart] = useState(1)
+  const [selectedPart, setSelectedPart] = useState(currentPart)
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([])
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -50,11 +54,7 @@ export function VideoList({
     )
   }, [initialVideos, searchTerm])
 
-  // 選択された Part（ページ）に応じて表示する動画をスライス
-  const displayedVideos = useMemo(() => {
-    const start = (selectedPart - 1) * pageSize
-    return filteredVideos.slice(start, start + pageSize)
-  }, [filteredVideos, selectedPart, pageSize])
+  const displayedVideos = filteredVideos
 
   const handleSelectAll = () => {
     if (selectedVideoIds.length === displayedVideos.length) {
@@ -124,7 +124,10 @@ export function VideoList({
               <button
                 key={part}
                 type="button"
-                onClick={() => setSelectedPart(part)}
+                onClick={() => {
+                  setSelectedPart(part)
+                  router.push(`/?part=${part}`)
+                }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
                   selectedPart === part
                     ? 'bg-red-600 text-white shadow-sm'
