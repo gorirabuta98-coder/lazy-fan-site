@@ -20,6 +20,7 @@ interface VideoListProps {
   playlists: any[]
   pageSize: number
   currentPart: number
+  onPlaylistsUpdated?: (playlists: PlaylistWithItems[]) => void
 }
 
 export function VideoList({
@@ -28,6 +29,7 @@ export function VideoList({
   playlists,
   pageSize,
   currentPart,
+  onPlaylistsUpdated,
 }: VideoListProps) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
@@ -42,8 +44,15 @@ export function VideoList({
   const totalParts = Math.ceil(totalCount / pageSize) || 54
   const parts = Array.from({ length: totalParts }, (_, i) => i + 1)
 
+  const reloadPlaylists = () => {
+    return getPlaylistsWithVideos(getDeviceId()).then((updatedPlaylists) => {
+      setDevicePlaylists(updatedPlaylists)
+      onPlaylistsUpdated?.(updatedPlaylists)
+    })
+  }
+
   useEffect(() => {
-    getPlaylistsWithVideos(getDeviceId()).then(setDevicePlaylists)
+    reloadPlaylists()
   }, [])
 
   // 検索フィルター適用後の動画一覧
@@ -200,7 +209,11 @@ export function VideoList({
 
                 <button
                   type="button"
-                  onClick={() => handleOpenModal(video)}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleOpenModal(video)
+                  }}
                   className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl transition-colors border border-gray-100 flex items-center justify-center gap-1 cursor-pointer"
                 >
                   <span>+</span> マイリストに追加
@@ -218,6 +231,7 @@ export function VideoList({
           thumbnailUrl={selectedVideo.thumbnail_url || selectedVideo.thumbnail || ''}
           playlists={devicePlaylists}
           onClose={() => setIsModalOpen(false)}
+          onPlaylistsUpdated={setDevicePlaylists}
         />
       )}
     </div>

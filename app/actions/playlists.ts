@@ -65,7 +65,13 @@ export async function createPlaylist(title: string, deviceId: string) {
 // ==========================================
 // 3. マイリストへ動画の追加（単体）
 // ==========================================
-export async function addToPlaylist(playlistId: string, video: any, deviceId: string) {
+export async function addToPlaylist(
+  playlistId: string,
+  videoId: string,
+  title: string,
+  thumbnailUrl: string,
+  deviceId: string
+) {
   const supabase = await createClient()
 
   const { data: playlist, error: playlistError } = await supabase
@@ -78,11 +84,6 @@ export async function addToPlaylist(playlistId: string, video: any, deviceId: st
   if (playlistError || !playlist) {
     return { success: false, error: playlistError?.message || 'マイリストが見つかりません。' }
   }
-
-  const videoId = typeof video === 'string' ? video : video.id || video.video_id
-  const title = typeof video === 'object' ? video.title || '無題' : '無題'
-  const thumbnailUrl =
-    typeof video === 'object' ? video.thumbnail_url || video.thumbnail || '' : ''
 
   const { error } = await supabase.from('playlist_items').upsert(
     {

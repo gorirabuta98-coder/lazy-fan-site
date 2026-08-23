@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createPlaylist, addToPlaylist } from '@/app/actions/playlists'
+import { createPlaylist, addToPlaylist, getPlaylistsWithVideos } from '@/app/actions/playlists'
 import { getDeviceId } from '@/lib/deviceId'
 
 export interface PlaylistWithItems {
@@ -17,6 +17,7 @@ interface AddToListModalProps {
   videoTitle: string
   thumbnailUrl: string
   onClose: () => void
+  onPlaylistsUpdated?: (playlists: PlaylistWithItems[]) => void
   playlists?: PlaylistWithItems[]
 }
 
@@ -25,6 +26,7 @@ export default function AddToListModal({
   videoTitle,
   thumbnailUrl,
   onClose,
+  onPlaylistsUpdated,
   playlists = [],
 }: AddToListModalProps) {
   const [isOpen, setIsOpen] = useState<boolean>(false)
@@ -73,20 +75,25 @@ export default function AddToListModal({
       const res = await createPlaylist(newPlaylistTitle.trim(), deviceId)
 
       if (res.success && res.playlist?.id) {
-        await addToPlaylist(res.playlist.id, {
-          id: videoId,
-          title: videoTitle,
-          thumbnail_url: thumbnailUrl,
-        }, deviceId)
+        const addResult = await addToPlaylist(
+          res.playlist.id,
+          videoId,
+          videoTitle,
+          thumbnailUrl,
+          deviceId
+        )
 
-        setMessage({ type: 'success', text: `「${newPlaylistTitle}」を作成して追加しました！` })
-        setNewPlaylistTitle('')
+        if (!addResult.success) {
+          setMessage({ type: 'error', text: addResult.error || '動画の追加に失敗しました。' })
+          return
+        }
 
-        setTimeout(() => {
-          setIsOpen(false)
-          setMessage(null)
-          router.refresh()
-        }, 1200)
+        const updatedPlaylists = await getPlaylistsWithVideos(deviceId)
+        onPlaylistsUpdated?.(updatedPlaylists)
+        alert(`「${newPlaylistTitle}」を作成して追加しました！`)
+        setIsProcessing(false)
+        handleClose()
+        router.refresh()
       } else {
         setMessage({ type: 'error', text: res.error || 'マイリストの作成に失敗しました。' })
       }
@@ -108,21 +115,19 @@ export default function AddToListModal({
 
     try {
       const deviceId = getDeviceId()
-      const res = await addToPlaylist(playlistId, {
-        id: videoId,
-        title: videoTitle,
-        thumbnail_url: thumbnailUrl,
-      }, deviceId)
+      const res = await addToPlaylist(
+        playlistId,
+        videoId,
+        videoTitle,
+        thumbnailUrl,
+        deviceId
+      )
 
       if (res.success) {
-        setMessage({ type: 'success', text: `「${playlistTitle}」に追加しました！` })
-
-        setTimeout(() => {
-          setIsOpen(false)
-          setMessage(null)
-          setProcessingId(null)
-          router.refresh()
-        }, 1000)
+        alert(`「${playlistTitle}」に追加しました！`)
+        setIsProcessing(false)
+        handleClose()
+        router.refresh()
       } else {
         setMessage({ type: 'error', text: res.error || '追加に失敗しました。' })
       }
