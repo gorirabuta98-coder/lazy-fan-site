@@ -39,16 +39,18 @@ export function VideoList({
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [devicePlaylists, setDevicePlaylists] = useState<PlaylistWithItems[]>(playlists)
 
-  const Modal = AddToListModal as any
-
   const totalParts = Math.ceil(totalCount / pageSize) || 54
   const parts = Array.from({ length: totalParts }, (_, i) => i + 1)
 
-  const reloadPlaylists = () => {
-    return getPlaylistsWithVideos(getDeviceId()).then((updatedPlaylists) => {
+  const reloadPlaylists = async () => {
+    try {
+      const deviceId = getDeviceId()
+      const updatedPlaylists = await getPlaylistsWithVideos(deviceId)
       setDevicePlaylists(updatedPlaylists)
       onPlaylistsUpdated?.(updatedPlaylists)
-    })
+    } catch (e) {
+      console.error('Failed to load playlists:', e)
+    }
   }
 
   useEffect(() => {
@@ -81,9 +83,20 @@ export function VideoList({
     )
   }
 
+  // 単一動画のモーダルオープン
   const handleOpenModal = (video: Video) => {
     setSelectedVideo(video)
     setIsModalOpen(true)
+  }
+
+  // チェックボックス選択中の複数追加モーダルオープン
+  const handleOpenModalBulk = () => {
+    if (selectedVideoIds.length === 0) return
+    const firstSelected = displayedVideos.find((v) => selectedVideoIds.includes(v.id))
+    if (firstSelected) {
+      setSelectedVideo(firstSelected)
+      setIsModalOpen(true)
+    }
   }
 
   return (
@@ -150,13 +163,28 @@ export function VideoList({
         </div>
       </div>
 
+      {/* チェックボックス選択時に上部に表示するまとめ追加ボタン */}
+      {selectedVideoIds.length > 0 && (
+        <div className="sticky top-4 z-20">
+          <button
+            type="button"
+            onClick={handleOpenModalBulk}
+            className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>+</span> 選択した {selectedVideoIds.length} 件をマイリストに追加
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {displayedVideos.map((video) => {
           const isSelected = selectedVideoIds.includes(video.id)
           return (
             <div
               key={video.id}
-              className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm flex flex-col hover:shadow-md transition-shadow group relative"
+              className={`bg-white rounded-2xl border overflow-hidden shadow-sm flex flex-col hover:shadow-md transition-all group relative ${
+                isSelected ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-100'
+              }`}
             >
               {/* サムネイル（クリックでYouTubeへ） */}
               <a
@@ -177,13 +205,13 @@ export function VideoList({
                     e.stopPropagation()
                     handleToggleSelect(video.id)
                   }}
-                  className={`absolute top-3 left-3 w-5 h-5 rounded border transition-colors flex items-center justify-center ${
+                  className={`absolute top-3 left-3 w-6 h-6 rounded-lg border transition-all flex items-center justify-center z-10 ${
                     isSelected
-                      ? 'bg-red-600 border-red-600 text-white'
-                      : 'bg-black/30 border-white/80 hover:bg-black/50'
+                      ? 'bg-red-600 border-red-600 text-white shadow'
+                      : 'bg-black/40 border-white/80 hover:bg-black/60 text-white'
                   }`}
                 >
-                  {isSelected && <span className="text-xs">✓</span>}
+                  {isSelected ? '✓' : ''}
                 </button>
               </a>
 
@@ -214,7 +242,7 @@ export function VideoList({
                     e.stopPropagation()
                     handleOpenModal(video)
                   }}
-                  className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl transition-colors border border-gray-100 flex items-center justify-center gap-1 cursor-pointer"
+                  className="w-full py-2.5 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors border border-gray-200 flex items-center justify-center gap-1 cursor-pointer"
                 >
                   <span>+</span> マイリストに追加
                 </button>
@@ -224,14 +252,24 @@ export function VideoList({
         })}
       </div>
 
+      {/* モーダル表示 */}
       {isModalOpen && selectedVideo && (
-        <Modal
+        <AddToListModal
           videoId={selectedVideo.id}
           videoTitle={selectedVideo.title}
           thumbnailUrl={selectedVideo.thumbnail_url || selectedVideo.thumbnail || ''}
           playlists={devicePlaylists}
-          onClose={() => setIsModalOpen(false)}
-          onPlaylistsUpdated={setDevicePlaylists}
+          onClose={() => {
+            setIsModalOpen(false)
+            setSelectedVideo(null)
+          }}
+          onPlaylistsUpdated={(updatedPlaylists) => {
+            setDevicePlaylists(updatedPlaylists)
+            onPlaylistsUpdated?.(updatedPlaylists)
+            setIsModalOpen(false)
+            setSelectedVideo(null)
+            setSelectedVideoIds([])
+          }}
         />
       )}
     </div>
