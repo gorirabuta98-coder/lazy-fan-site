@@ -21,6 +21,18 @@ interface AddToListModalProps {
   playlists?: PlaylistWithItems[]
 }
 
+// 英語エラーメッセージを日本語に変換する関数
+const formatErrorMessage = (errorMsg?: string): string => {
+  if (!errorMsg) return '処理に失敗しました。'
+  if (errorMsg.includes('row-level security')) {
+    return 'データベースの書き込み権限エラーです。SupabaseのSQL EditorでRLSを無効化してください。'
+  }
+  if (errorMsg.includes('duplicate key')) {
+    return 'すでにこのリストに追加されています。'
+  }
+  return 'エラーが発生しました。もう一度お試しください。'
+}
+
 export default function AddToListModal({
   videoId,
   videoTitle,
@@ -38,7 +50,6 @@ export default function AddToListModal({
 
   const router = useRouter()
 
-  // ESCキーでモーダルを閉じる
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !isProcessing) {
@@ -49,7 +60,6 @@ export default function AddToListModal({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isProcessing])
 
-  // モーダルを閉じて状態を初期化
   const handleClose = () => {
     if (isProcessing) return
     setNewPlaylistTitle('')
@@ -82,7 +92,7 @@ export default function AddToListModal({
         )
 
         if (!addResult.success) {
-          setMessage({ type: 'error', text: addResult.error || '動画の追加に失敗しました。' })
+          setMessage({ type: 'error', text: formatErrorMessage(addResult.error) })
           setIsProcessing(false)
           return
         }
@@ -93,7 +103,7 @@ export default function AddToListModal({
         handleClose()
         router.refresh()
       } else {
-        setMessage({ type: 'error', text: res.error || 'マイリストの作成に失敗しました。' })
+        setMessage({ type: 'error', text: formatErrorMessage(res.error) })
       }
     } catch (error) {
       console.error('新規追加エラー:', error)
@@ -128,7 +138,7 @@ export default function AddToListModal({
         handleClose()
         router.refresh()
       } else {
-        setMessage({ type: 'error', text: res.error || '追加に失敗しました。' })
+        setMessage({ type: 'error', text: formatErrorMessage(res.error) })
       }
     } catch (error) {
       console.error('既存追加エラー:', error)
@@ -139,7 +149,6 @@ export default function AddToListModal({
     }
   }
 
-  // 既存マイリストの検索フィルタリング
   const filteredPlaylists = playlists.filter((pl) =>
     (pl.title || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
@@ -153,7 +162,6 @@ export default function AddToListModal({
         className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 relative space-y-5 animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ヘッダー */}
         <div className="flex items-center justify-between border-b border-gray-100 pb-3">
           <div className="flex items-center gap-2">
             <span className="text-xl">📁</span>
@@ -169,7 +177,6 @@ export default function AddToListModal({
           </button>
         </div>
 
-        {/* 対象動画の簡易表示 */}
         <div className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-2xl border border-gray-100">
           <img
             src={thumbnailUrl}
@@ -181,7 +188,6 @@ export default function AddToListModal({
           </p>
         </div>
 
-        {/* メッセージ通知エリア */}
         {message && (
           <div
             className={`p-3 rounded-xl text-xs font-bold transition-all ${
@@ -194,7 +200,6 @@ export default function AddToListModal({
           </div>
         )}
 
-        {/* タブ切り替えボタン */}
         <div className="flex bg-gray-100 p-1 rounded-xl">
           <button
             type="button"
@@ -220,7 +225,6 @@ export default function AddToListModal({
           </button>
         </div>
 
-        {/* タブ 1: 既存マイリスト選択 */}
         {activeTab === 'existing' && (
           <div className="space-y-3">
             {playlists.length > 5 && (
@@ -275,7 +279,6 @@ export default function AddToListModal({
           </div>
         )}
 
-        {/* タブ 2: 新規マイリスト作成 */}
         {activeTab === 'new' && (
           <form onSubmit={handleCreateAndAdd} className="space-y-4">
             <div className="space-y-1.5">

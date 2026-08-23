@@ -1,11 +1,5 @@
-import type { Metadata } from 'next'
-import Header from '@/components/Header'
-import './globals.css'
-
-export const metadata: Metadata = {
-  title: 'LAKE FAN SITE',
-  description: 'LAKE FAN SITE',
-}
+import AnonymousAuth from '@/components/AnonymousAuth'
+import './globals.css' // もともとインポートされていたスタイルがあれば残す
 
 export default function RootLayout({
   children,
@@ -14,8 +8,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body className="bg-gray-50 text-gray-900 antialiased">
-        <Header />
+      <body>
+        <AnonymousAuth />
         {children}
       </body>
     </html>
