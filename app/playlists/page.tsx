@@ -1,8 +1,17 @@
-import { getPlaylistsWithVideos } from '@/app/actions/playlists'
-import { PlaylistCard } from '@/components/PlaylistCard'
+'use client'
 
-export default async function PlaylistsPage() {
-  const playlists = await getPlaylistsWithVideos()
+import { useEffect, useState } from 'react'
+import { getPlaylistsWithVideos } from '@/app/actions/playlists'
+import { getDeviceId } from '@/lib/deviceId'
+import { PlaylistCard } from '@/components/PlaylistCard'
+import type { PlaylistWithItems } from '@/components/AddToListModal'
+
+export default function PlaylistsPage() {
+  const [playlists, setPlaylists] = useState<PlaylistWithItems[]>([])
+
+  useEffect(() => {
+    getPlaylistsWithVideos(getDeviceId()).then(setPlaylists)
+  }, [])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -17,7 +26,7 @@ export default async function PlaylistsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {playlists.map((playlist: any) => (
+            {playlists.map((playlist) => (
               <PlaylistCard key={playlist.id} playlist={playlist} />
             ))}
           </div>

@@ -6,11 +6,8 @@ import { revalidatePath } from 'next/cache'
 // ==========================================
 // 1. マイリスト一覧と動画データを取得
 // ==========================================
-export async function getPlaylistsWithVideos() {
+export async function getPlaylistsWithVideos(deviceId: string) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
 
   let query = supabase
     .from('playlists')
@@ -29,11 +26,7 @@ export async function getPlaylistsWithVideos() {
     `)
     .order('created_at', { ascending: false })
 
-  if (user) {
-    query = query.eq('user_id', user.id)
-  } else {
-    query = query.is('user_id', null)
-  }
+  query = query.eq('user_id', deviceId)
 
   const { data, error } = await query
 
@@ -48,17 +41,14 @@ export async function getPlaylistsWithVideos() {
 // ==========================================
 // 2. マイリストの新規作成（単体）
 // ==========================================
-export async function createPlaylist(title: string) {
+export async function createPlaylist(title: string, deviceId: string) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
 
   const { data, error } = await supabase
     .from('playlists')
     .insert({
       title,
-      user_id: user ? user.id : null,
+      user_id: deviceId,
     })
     .select()
     .single()
@@ -75,8 +65,19 @@ export async function createPlaylist(title: string) {
 // ==========================================
 // 3. マイリストへ動画の追加（単体）
 // ==========================================
-export async function addToPlaylist(playlistId: string, video: any) {
+export async function addToPlaylist(playlistId: string, video: any, deviceId: string) {
   const supabase = await createClient()
+
+  const { data: playlist, error: playlistError } = await supabase
+    .from('playlists')
+    .select('id')
+    .eq('id', playlistId)
+    .eq('user_id', deviceId)
+    .single()
+
+  if (playlistError || !playlist) {
+    return { success: false, error: playlistError?.message || 'マイリストが見つかりません。' }
+  }
 
   const videoId = typeof video === 'string' ? video : video.id || video.video_id
   const title = typeof video === 'object' ? video.title || '無題' : '無題'
@@ -108,12 +109,10 @@ export async function addToPlaylist(playlistId: string, video: any) {
 export async function addMultipleToPlaylist(
   playlistId: string | null,
   playlistName: string,
-  videos: any[]
+  videos: any[],
+  deviceId: string
 ) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
 
   let targetPlaylistId = playlistId
 
@@ -122,7 +121,7 @@ export async function addMultipleToPlaylist(
       .from('playlists')
       .insert({
         title: playlistName,
-        user_id: user ? user.id : null,
+        user_id: deviceId,
       })
       .select()
       .single()
@@ -163,13 +162,14 @@ export async function addMultipleToPlaylist(
 // ==========================================
 // 5. マイリスト名の変更
 // ==========================================
-export async function updatePlaylistTitle(playlistId: string, title: string) {
+export async function updatePlaylistTitle(playlistId: string, title: string, deviceId: string) {
   const supabase = await createClient()
 
   const { error } = await supabase
     .from('playlists')
     .update({ title })
     .eq('id', playlistId)
+    .eq('user_id', deviceId)
 
   if (error) {
     console.error('updatePlaylistTitle エラー:', error)
@@ -183,13 +183,14 @@ export async function updatePlaylistTitle(playlistId: string, title: string) {
 // ==========================================
 // 6. マイリストの完全削除
 // ==========================================
-export async function deletePlaylist(playlistId: string) {
+export async function deletePlaylist(playlistId: string, deviceId: string) {
   const supabase = await createClient()
 
   const { error } = await supabase
     .from('playlists')
     .delete()
     .eq('id', playlistId)
+    .eq('user_id', deviceId)
 
   if (error) {
     console.error('deletePlaylist エラー:', error)
@@ -203,8 +204,19 @@ export async function deletePlaylist(playlistId: string) {
 // ==========================================
 // 7. マイリストから個別の動画を削除
 // ==========================================
-export async function removeFromPlaylist(playlistId: string, videoId: string) {
+export async function removeFromPlaylist(playlistId: string, videoId: string, deviceId: string) {
   const supabase = await createClient()
+
+  const { data: playlist, error: playlistError } = await supabase
+    .from('playlists')
+    .select('id')
+    .eq('id', playlistId)
+    .eq('user_id', deviceId)
+    .single()
+
+  if (playlistError || !playlist) {
+    return { success: false, error: playlistError?.message || 'マイリストが見つかりません。' }
+  }
 
   const { error } = await supabase
     .from('playlist_items')

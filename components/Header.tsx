@@ -33,13 +33,6 @@ export default function Header() {
             📁 マイリスト
           </Link>
 
-          {/* ログインボタン */}
-          <Link
-            href="/login"
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 active:scale-95 transition-all cursor-pointer text-white text-xs font-bold rounded-full shadow-sm flex items-center gap-1"
-          >
-            <span>👤</span> ログイン
-          </Link>
         </div>
       </div>
     </header>

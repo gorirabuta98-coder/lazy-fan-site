@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createPlaylist, deletePlaylist } from '@/app/actions/playlists'
+import { getDeviceId } from '@/lib/deviceId'
 
 export default function PlaylistActions() {
   const [newPlaylistName, setNewPlaylistName] = useState('')
@@ -12,7 +13,7 @@ export default function PlaylistActions() {
     if (!newPlaylistName.trim() || loading) return
 
     setLoading(true)
-    const res = await createPlaylist(newPlaylistName.trim())
+    const res = await createPlaylist(newPlaylistName.trim(), getDeviceId())
     setLoading(false)
 
     if (res.success) {
@@ -26,7 +27,7 @@ export default function PlaylistActions() {
     if (!confirm('本当に削除しますか？')) return
 
     setLoading(true)
-    const res = await deletePlaylist(id)
+    const res = await deletePlaylist(id, getDeviceId())
     setLoading(false)
 
     if (res.success) {

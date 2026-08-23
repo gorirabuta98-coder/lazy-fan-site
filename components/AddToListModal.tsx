@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createPlaylist, addToPlaylist } from '@/app/actions/playlists'
+import { getDeviceId } from '@/lib/deviceId'
 
 export interface PlaylistWithItems {
   id: string
@@ -56,6 +57,7 @@ export default function AddToListModal({
     setMessage(null)
     setProcessingId(null)
     setActiveTab('existing')
+    onClose()
   }
 
   // 新規マイリスト作成 ＆ 動画追加
@@ -67,14 +69,15 @@ export default function AddToListModal({
     setMessage(null)
 
     try {
-      const res = await createPlaylist(newPlaylistTitle.trim())
+      const deviceId = getDeviceId()
+      const res = await createPlaylist(newPlaylistTitle.trim(), deviceId)
 
       if (res.success && res.playlist?.id) {
         await addToPlaylist(res.playlist.id, {
           id: videoId,
           title: videoTitle,
           thumbnail_url: thumbnailUrl,
-        })
+        }, deviceId)
 
         setMessage({ type: 'success', text: `「${newPlaylistTitle}」を作成して追加しました！` })
         setNewPlaylistTitle('')
@@ -104,11 +107,12 @@ export default function AddToListModal({
     setMessage(null)
 
     try {
+      const deviceId = getDeviceId()
       const res = await addToPlaylist(playlistId, {
         id: videoId,
         title: videoTitle,
         thumbnail_url: thumbnailUrl,
-      })
+      }, deviceId)
 
       if (res.success) {
         setMessage({ type: 'success', text: `「${playlistTitle}」に追加しました！` })

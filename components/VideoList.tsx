@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import AddToListModal from './AddToListModal'
+import { useState, useMemo, useEffect } from 'react'
+import { getPlaylistsWithVideos } from '@/app/actions/playlists'
+import { getDeviceId } from '@/lib/deviceId'
+import AddToListModal, { PlaylistWithItems } from './AddToListModal'
 
 interface Video {
   id: string
@@ -29,11 +31,16 @@ export function VideoList({
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([])
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [devicePlaylists, setDevicePlaylists] = useState<PlaylistWithItems[]>(playlists)
 
   const Modal = AddToListModal as any
 
   const totalParts = Math.ceil(totalCount / pageSize) || 54
   const parts = Array.from({ length: totalParts }, (_, i) => i + 1)
+
+  useEffect(() => {
+    getPlaylistsWithVideos(getDeviceId()).then(setDevicePlaylists)
+  }, [])
 
   const filteredVideos = useMemo(() => {
     if (!initialVideos) return []
@@ -176,7 +183,9 @@ export function VideoList({
       {isModalOpen && selectedVideo && (
         <Modal
           videoId={selectedVideo.id}
-          playlists={playlists}
+          videoTitle={selectedVideo.title}
+          thumbnailUrl={selectedVideo.thumbnail_url || selectedVideo.thumbnail || ''}
+          playlists={devicePlaylists}
           onClose={() => setIsModalOpen(false)}
         />
       )}

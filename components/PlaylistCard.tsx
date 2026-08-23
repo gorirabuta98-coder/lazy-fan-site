@@ -7,6 +7,7 @@ import {
   deletePlaylist,
   removeFromPlaylist,
 } from '@/app/actions/playlists'
+import { getDeviceId } from '@/lib/deviceId'
 
 interface Video {
   id: string
@@ -59,7 +60,7 @@ export function PlaylistCard({ playlist }: PlaylistCardProps) {
 
     setIsProcessing(true)
     try {
-      const res = await updatePlaylistTitle(playlist.id, title.trim())
+      const res = await updatePlaylistTitle(playlist.id, title.trim(), getDeviceId())
       if (res.success) {
         setIsEditing(false)
         router.refresh()
@@ -80,7 +81,7 @@ export function PlaylistCard({ playlist }: PlaylistCardProps) {
 
     setIsProcessing(true)
     try {
-      const res = await deletePlaylist(playlist.id)
+      const res = await deletePlaylist(playlist.id, getDeviceId())
       if (res.success) {
         router.refresh()
       } else {
@@ -100,7 +101,7 @@ export function PlaylistCard({ playlist }: PlaylistCardProps) {
 
     setIsProcessing(true)
     try {
-      const res = await removeFromPlaylist(playlist.id, videoId)
+      const res = await removeFromPlaylist(playlist.id, videoId, getDeviceId())
       if (res.success) {
         // 即座にローカル状態から除外（即時消去）
         setItems((prev) => prev.filter((item) => item.video_id !== videoId))
