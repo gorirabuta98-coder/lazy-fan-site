@@ -42,6 +42,7 @@ export function VideoList({
     getPlaylistsWithVideos(getDeviceId()).then(setDevicePlaylists)
   }, [])
 
+  // 検索フィルター適用後の動画一覧
   const filteredVideos = useMemo(() => {
     if (!initialVideos) return []
     return initialVideos.filter((video) =>
@@ -49,11 +50,17 @@ export function VideoList({
     )
   }, [initialVideos, searchTerm])
 
+  // 選択された Part（ページ）に応じて表示する動画をスライス
+  const displayedVideos = useMemo(() => {
+    const start = (selectedPart - 1) * pageSize
+    return filteredVideos.slice(start, start + pageSize)
+  }, [filteredVideos, selectedPart, pageSize])
+
   const handleSelectAll = () => {
-    if (selectedVideoIds.length === filteredVideos.length) {
+    if (selectedVideoIds.length === displayedVideos.length) {
       setSelectedVideoIds([])
     } else {
-      setSelectedVideoIds(filteredVideos.map((v) => v.id))
+      setSelectedVideoIds(displayedVideos.map((v) => v.id))
     }
   }
 
@@ -98,7 +105,10 @@ export function VideoList({
                 type="text"
                 placeholder="動画タイトルを検索..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  setSelectedPart(1)
+                }}
                 className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
               />
             </div>
@@ -129,14 +139,20 @@ export function VideoList({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {filteredVideos.map((video) => {
+        {displayedVideos.map((video) => {
           const isSelected = selectedVideoIds.includes(video.id)
           return (
             <div
               key={video.id}
               className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm flex flex-col hover:shadow-md transition-shadow group relative"
             >
-              <div className="relative aspect-video bg-gray-100 overflow-hidden">
+              {/* サムネイル（クリックでYouTubeへ） */}
+              <a
+                href={`https://www.youtube.com/watch?v=${video.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative aspect-video bg-gray-100 overflow-hidden block"
+              >
                 <img
                   src={video.thumbnail_url || video.thumbnail || ''}
                   alt={video.title}
@@ -144,7 +160,11 @@ export function VideoList({
                 />
                 <button
                   type="button"
-                  onClick={() => handleToggleSelect(video.id)}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleToggleSelect(video.id)
+                  }}
                   className={`absolute top-3 left-3 w-5 h-5 rounded border transition-colors flex items-center justify-center ${
                     isSelected
                       ? 'bg-red-600 border-red-600 text-white'
@@ -153,13 +173,21 @@ export function VideoList({
                 >
                   {isSelected && <span className="text-xs">✓</span>}
                 </button>
-              </div>
+              </a>
 
+              {/* タイトルとマイリスト追加 */}
               <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
                 <div className="space-y-1">
-                  <h3 className="font-bold text-sm text-gray-900 line-clamp-2 leading-snug">
-                    {video.title}
-                  </h3>
+                  <a
+                    href={`https://www.youtube.com/watch?v=${video.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-red-600 transition-colors block"
+                  >
+                    <h3 className="font-bold text-sm text-gray-900 line-clamp-2 leading-snug">
+                      {video.title}
+                    </h3>
+                  </a>
                   {video.published_at && (
                     <p className="text-[11px] text-gray-400">
                       {video.published_at.split('T')[0]}
@@ -170,7 +198,7 @@ export function VideoList({
                 <button
                   type="button"
                   onClick={() => handleOpenModal(video)}
-                  className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl transition-colors border border-gray-100 flex items-center justify-center gap-1"
+                  className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl transition-colors border border-gray-100 flex items-center justify-center gap-1 cursor-pointer"
                 >
                   <span>+</span> マイリストに追加
                 </button>
