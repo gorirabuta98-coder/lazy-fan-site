@@ -178,21 +178,13 @@ export function VideoList({
         </div>
       )}
 
-      {/* マイリスト表示 */}
+      {/* マイリスト表示（動画一覧と同デザインのカード表示） */}
       {activeTab === 'mylist' && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6">
           <div className="flex justify-between items-center border-b pb-4">
             <h2 className="text-xl font-bold text-gray-800">
               📁 マイリスト ({myList.length} 件)
             </h2>
-            {myList.length > 0 && (
-              <button
-                onClick={() => setIsShareModalOpen(true)}
-                className="bg-green-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-green-700 text-sm"
-              >
-                🔗 このマイリストを公開・共有する
-              </button>
-            )}
           </div>
 
           {myList.length === 0 ? (
@@ -201,25 +193,45 @@ export function VideoList({
             </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {myList.map((id) => (
-                <div key={id} className="bg-white border border-gray-100 rounded-lg overflow-hidden shadow-sm">
-                  <div className="aspect-video">
-                    <iframe
-                      src={`https://www.youtube.com/embed/${id}`}
-                      className="w-full h-full border-0"
-                      allowFullScreen
-                    />
+              {myList.map((id) => {
+                const video = initialVideos.find((v) => v.id === id)
+                const title = video ? video.title : `動画 ID: ${id}`
+                const thumb = video?.thumbnailUrl || video?.thumbnail_url || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
+                const date = video?.publishedAt || video?.published_at || ''
+
+                return (
+                  <div
+                    key={id}
+                    className="bg-white border border-gray-100 rounded-lg overflow-hidden shadow-sm flex flex-col justify-between"
+                  >
+                    <div className="relative aspect-video">
+                      <img
+                        src={thumb}
+                        alt={title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="p-3 space-y-2 flex-1 flex flex-col justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-gray-800 line-clamp-2">
+                          {title}
+                        </p>
+                        {date && (
+                          <p className="text-[10px] text-gray-400 mt-1">
+                            {date}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => toggleMyList(id)}
+                        className="w-full py-1.5 rounded text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 transition"
+                      >
+                        マイリストから削除
+                      </button>
+                    </div>
                   </div>
-                  <div className="p-3">
-                    <button
-                      onClick={() => toggleMyList(id)}
-                      className="w-full py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200 font-medium"
-                    >
-                      削除
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
