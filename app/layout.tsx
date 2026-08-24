@@ -1,5 +1,12 @@
+import type { Metadata } from 'next'
 import AnonymousAuth from '@/components/AnonymousAuth'
-import './globals.css' // もともとインポートされていたスタイルがあれば残す
+import Header from '@/components/Header' // ※ヘッダーのファイル名が Navbar.tsx などの場合は変更してください
+import './globals.css'
+
+export const metadata: Metadata = {
+  title: '動画マイリスト',
+  description: 'マイリスト作成・管理アプリ',
+}
 
 export default function RootLayout({
   children,
@@ -8,9 +15,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body>
+      <body className="min-h-screen bg-gray-50 text-gray-900 antialiased">
         <AnonymousAuth />
-        {children}
+        <Header />
+        <main>{children}</main>
       </body>
     </html>
   )
