@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import ShareModal from '@/components/ShareModal'
 
 interface Video {
   id: string
@@ -31,7 +30,6 @@ export function VideoList({
   const [searchQuery, setSearchQuery] = useState('')
   const [myList, setMyList] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState<'all' | 'mylist'>('all')
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
   // ローカルストレージからマイリストを復元
   useEffect(() => {
@@ -66,40 +64,28 @@ export function VideoList({
 
   return (
     <div className="space-y-6">
-      {/* 上部操作バー */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 rounded-lg font-bold text-sm transition ${
-              activeTab === 'all'
-                ? 'bg-red-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            動画一覧
-          </button>
-          <button
-            onClick={() => setActiveTab('mylist')}
-            className={`px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-2 ${
-              activeTab === 'mylist'
-                ? 'bg-red-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            📁 マイリスト ({myList.length})
-          </button>
-        </div>
-
-        {/* 公開・共有ボタン */}
-        {myList.length > 0 && (
-          <button
-            onClick={() => setIsShareModalOpen(true)}
-            className="bg-green-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm flex items-center gap-2 shadow-sm"
-          >
-            <span>🔗</span> このマイリストを公開・共有する
-          </button>
-        )}
+      {/* タブ切り替えバー */}
+      <div className="flex gap-2 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <button
+          onClick={() => setActiveTab('all')}
+          className={`px-4 py-2 rounded-lg font-bold text-sm transition ${
+            activeTab === 'all'
+              ? 'bg-red-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          動画一覧
+        </button>
+        <button
+          onClick={() => setActiveTab('mylist')}
+          className={`px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-2 ${
+            activeTab === 'mylist'
+              ? 'bg-red-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          📁 マイリスト ({myList.length})
+        </button>
       </div>
 
       {/* 動画一覧表示 */}
@@ -178,7 +164,7 @@ export function VideoList({
         </div>
       )}
 
-      {/* マイリスト表示（動画一覧と同デザインのカード表示） */}
+      {/* マイリスト表示 */}
       {activeTab === 'mylist' && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6">
           <div className="flex justify-between items-center border-b pb-4">
@@ -236,13 +222,6 @@ export function VideoList({
           )}
         </div>
       )}
-
-      {/* 共有用モーダル */}
-      <ShareModal
-        isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        videoIds={myList}
-      />
     </div>
   )
 }
