@@ -8,6 +8,9 @@ export const metadata: Metadata = {
   title: '【非公式】レイクレ動画検索＆マイリスト | Lazy Lie Crazy ファンツール',
   description: 'レイクレ（Lazy Lie Crazy）のYouTube動画を爆速で検索・マイリスト管理できるファン専用ツール。お気に入りの動画をまとめていつでも楽しめます。',
   keywords: ['レイクレ', 'Lazy Lie Crazy', 'どば師匠', 'たかし', 'てっちゃん', 'ぴかるん', 'ぺろ愛男爵', 'マイリスト', '動画検索'],
+  verification: {
+    google: '_J5YeW-K9xYmppAas_pXAYuGJf4hxVqT1CRPEPIzKT0',
+  },
 }
 
 export default function RootLayout({
