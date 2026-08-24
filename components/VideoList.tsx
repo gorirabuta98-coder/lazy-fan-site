@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import AddToListModal, { PlaylistWithItems } from '@/components/AddToListModal'
 
 interface Video {
   id: string
@@ -15,7 +16,7 @@ interface Video {
 interface VideoListProps {
   initialVideos: Video[]
   totalCount: number
-  playlists?: any[]
+  playlists?: PlaylistWithItems[]
   pageSize: number
   currentPart: number
 }
@@ -23,37 +24,16 @@ interface VideoListProps {
 export function VideoList({
   initialVideos,
   totalCount,
+  playlists: initialPlaylists = [],
   pageSize,
   currentPart,
 }: VideoListProps) {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
-  const [myList, setMyList] = useState<string[]>([])
+  const [playlists, setPlaylists] = useState<PlaylistWithItems[]>(initialPlaylists)
   const [activeTab, setActiveTab] = useState<'all' | 'mylist'>('all')
-
-  // ローカルストレージからマイリストを復元
-  useEffect(() => {
-    const saved = localStorage.getItem('lake_my_list')
-    if (saved) {
-      try {
-        setMyList(JSON.parse(saved))
-      } catch (e) {
-        console.error(e)
-      }
-    }
-  }, [])
-
-  // マイリストの追加・削除
-  const toggleMyList = (videoId: string) => {
-    let updated: string[]
-    if (myList.includes(videoId)) {
-      updated = myList.filter((id) => id !== videoId)
-    } else {
-      updated = [...myList, videoId]
-    }
-    setMyList(updated)
-    localStorage.setItem('lake_my_list', JSON.stringify(updated))
-  }
+  const [selectedVideoForModal, setSelectedVideoForModal] = useState<Video | null>(null)
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null)
 
   // 検索フィルタリング
   const filteredVideos = initialVideos.filter((video) =>
@@ -61,6 +41,9 @@ export function VideoList({
   )
 
   const totalParts = Math.ceil(totalCount / pageSize)
+
+  // 選択中のマイリスト、または最初のマイリストを取得
+  const currentPlaylist = playlists.find((pl) => pl.id === selectedPlaylistId) || playlists[0]
 
   return (
     <div className="space-y-6">
@@ -84,7 +67,7 @@ export function VideoList({
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          📁 マイリスト ({myList.length})
+          📁 マイリスト ({playlists.length})
         </button>
       </div>
 
@@ -124,7 +107,7 @@ export function VideoList({
           {/* 動画カード一覧 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {filteredVideos.map((video) => {
-              const inMyList = myList.includes(video.id)
+              const thumb = video.thumbnailUrl || video.thumbnail_url || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`
               return (
                 <div
                   key={video.id}
@@ -132,7 +115,7 @@ export function VideoList({
                 >
                   <div className="relative aspect-video">
                     <img
-                      src={video.thumbnailUrl || video.thumbnail_url || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
+                      src={thumb}
                       alt={video.title}
                       className="w-full h-full object-cover"
                     />
@@ -147,14 +130,10 @@ export function VideoList({
                       </p>
                     </div>
                     <button
-                      onClick={() => toggleMyList(video.id)}
-                      className={`w-full py-1.5 rounded text-xs font-bold transition ${
-                        inMyList
-                          ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                          : 'bg-red-50 text-red-600 hover:bg-red-100'
-                      }`}
+                      onClick={() => setSelectedVideoForModal(video)}
+                      className="w-full py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded text-xs font-bold transition"
                     >
-                      {inMyList ? '✓ マイリスト追加済み' : '+ マイリストに追加'}
+                      + マイリストに追加
                     </button>
                   </div>
                 </div>
@@ -167,60 +146,78 @@ export function VideoList({
       {/* マイリスト表示 */}
       {activeTab === 'mylist' && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6">
-          <div className="flex justify-between items-center border-b pb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
             <h2 className="text-xl font-bold text-gray-800">
-              📁 マイリスト ({myList.length} 件)
+              📁 マイリスト一覧
             </h2>
+            {/* 複数マイリストのタブ選択 */}
+            {playlists.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {playlists.map((pl) => (
+                  <button
+                    key={pl.id}
+                    onClick={() => setSelectedPlaylistId(pl.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                      (currentPlaylist?.id === pl.id)
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {pl.title} ({pl.playlist_items?.length || 0})
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {myList.length === 0 ? (
+          {playlists.length === 0 ? (
             <p className="text-center py-12 text-gray-500 text-sm">
-              マイリストに動画が登録されていません。「動画一覧」から追加してください。
+              マイリストがありません。「動画一覧」から動画を追加して新しいマイリストを作成してください。
+            </p>
+          ) : !currentPlaylist || !currentPlaylist.playlist_items || currentPlaylist.playlist_items.length === 0 ? (
+            <p className="text-center py-12 text-gray-500 text-sm">
+              「{currentPlaylist?.title}」にはまだ動画が登録されていません。
             </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {myList.map((id) => {
-                const video = initialVideos.find((v) => v.id === id)
-                const title = video ? video.title : `動画 ID: ${id}`
-                const thumb = video?.thumbnailUrl || video?.thumbnail_url || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
-                const date = video?.publishedAt || video?.published_at || ''
-
-                return (
-                  <div
-                    key={id}
-                    className="bg-white border border-gray-100 rounded-lg overflow-hidden shadow-sm flex flex-col justify-between"
-                  >
-                    <div className="relative aspect-video">
-                      <img
-                        src={thumb}
-                        alt={title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="p-3 space-y-2 flex-1 flex flex-col justify-between">
-                      <div>
-                        <p className="text-xs font-bold text-gray-800 line-clamp-2">
-                          {title}
-                        </p>
-                        {date && (
-                          <p className="text-[10px] text-gray-400 mt-1">
-                            {date}
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => toggleMyList(id)}
-                        className="w-full py-1.5 rounded text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 transition"
-                      >
-                        マイリストから削除
-                      </button>
-                    </div>
+              {currentPlaylist.playlist_items.map((item: any) => (
+                <div
+                  key={item.id || item.video_id}
+                  className="bg-white border border-gray-100 rounded-lg overflow-hidden shadow-sm flex flex-col justify-between"
+                >
+                  <div className="relative aspect-video">
+                    <img
+                      src={item.thumbnail_url || item.thumbnailUrl || `https://i.ytimg.com/vi/${item.video_id}/hqdefault.jpg`}
+                      alt={item.title || item.video_title}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                )
-              })}
+                  <div className="p-3 space-y-2 flex-1 flex flex-col justify-between">
+                    <p className="text-xs font-bold text-gray-800 line-clamp-2">
+                      {item.title || item.video_title}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
+      )}
+
+      {/* マイリスト追加モーダル */}
+      {selectedVideoForModal && (
+        <AddToListModal
+          videoId={selectedVideoForModal.id}
+          videoTitle={selectedVideoForModal.title}
+          thumbnailUrl={
+            selectedVideoForModal.thumbnailUrl ||
+            selectedVideoForModal.thumbnail_url ||
+            `https://i.ytimg.com/vi/${selectedVideoForModal.id}/hqdefault.jpg`
+          }
+          onClose={() => setSelectedVideoForModal(null)}
+          playlists={playlists}
+          onPlaylistsUpdated={(updated) => setPlaylists(updated)}
+        />
       )}
     </div>
   )
