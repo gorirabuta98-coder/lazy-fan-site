@@ -18,7 +18,7 @@ interface VideoListProps {
   totalCount: number
   playlists?: PlaylistWithItems[]
   pageSize: number
-  currentPart: number
+  currentPart: number | 'all'
   allVideos?: Video[]
 }
 
@@ -27,7 +27,7 @@ export function VideoList({
   totalCount,
   playlists: initialPlaylists = [],
   pageSize,
-  currentPart,
+  currentPart: initialPart,
   allVideos = [],
 }: VideoListProps) {
   const router = useRouter()
@@ -37,11 +37,13 @@ export function VideoList({
   const [selectedVideoForModal, setSelectedVideoForModal] = useState<Video | null>(null)
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([])
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null)
-
-  // 全動画からの検索処理（検索ワード入力時は全件対象）
+  
+  // 「すべて」ボタン押下、または検索キーワード入力時は全動画を対象にする
   const isSearching = searchQuery.trim() !== ''
-  const searchSource = isSearching && allVideos.length > 0 ? allVideos : initialVideos
-  const filteredVideos = searchSource.filter((video) =>
+  const isAllMode = initialPart === 'all' || isSearching
+
+  const baseSource = (isAllMode && allVideos.length > 0) ? allVideos : initialVideos
+  const filteredVideos = baseSource.filter((video) =>
     video.title.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
@@ -133,7 +135,7 @@ export function VideoList({
               <div className="relative flex-1 sm:w-64">
                 <input
                   type="text"
-                  placeholder="動画タイトルを検索..."
+                  placeholder="全動画からタイトル検索..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -143,29 +145,37 @@ export function VideoList({
             </div>
           </div>
 
-          {/* Part選択エリア（検索時は非表示） */}
-          {!isSearching && (
-            <div className="space-y-2 pt-2 border-t border-gray-100">
-              <p className="text-xs text-gray-400 font-medium">
-                ページ選択 (Part 1 ～ Part {totalParts})
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {Array.from({ length: totalParts }, (_, i) => i + 1).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => router.push(`/?part=${p}`)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                      p === currentPart
-                        ? 'bg-red-600 text-white font-bold'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    Part {p}
-                  </button>
-                ))}
-              </div>
+          {/* Part選択エリア（「すべて」枠を追加） */}
+          <div className="space-y-2 pt-2 border-t border-gray-100">
+            <p className="text-xs text-gray-400 font-medium">
+              ページ選択 (すべて ＋ Part 1 ～ Part {totalParts})
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => router.push('/?part=all')}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                  initialPart === 'all'
+                    ? 'bg-red-600 text-white font-bold'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                すべて (全件)
+              </button>
+              {Array.from({ length: totalParts }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => router.push(`/?part=${p}`)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                    initialPart === p && !isSearching
+                      ? 'bg-red-600 text-white font-bold'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Part {p}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
 
           {/* 動画カードグリッド */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -184,7 +194,7 @@ export function VideoList({
                     isSelected ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-100'
                   }`}
                 >
-                  {/* サムネイル ＆ 左上チェックボックス */}
+                  {/* サムネイル ＆ チェックボックス */}
                   <div className="relative aspect-video">
                     <button
                       onClick={() => toggleSelectVideo(video.id)}
@@ -245,7 +255,6 @@ export function VideoList({
                     key={pl.id}
                     className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4"
                   >
-                    {/* ヘッダー部（フォルダアイコン、タイトル、編集・削除ボタン） */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-amber-500 text-xl">📁</span>
@@ -259,7 +268,6 @@ export function VideoList({
 
                     <p className="text-xs text-gray-400">動画 {items.length} 件</p>
 
-                    {/* サムネイルプレビュー一覧 */}
                     {items.length > 0 && (
                       <div className="flex gap-2 overflow-x-auto pb-2">
                         {items.slice(0, 4).map((item: any, idx) => (
@@ -281,7 +289,6 @@ export function VideoList({
                       </div>
                     )}
 
-                    {/* 動画展開表示ボタン */}
                     <button
                       onClick={() => setExpandedPlaylistId(isExpanded ? null : pl.id)}
                       className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-xs font-bold text-center border border-gray-100 transition"
@@ -289,7 +296,6 @@ export function VideoList({
                       {isExpanded ? '▲ 動画一覧を閉じる' : '▼ 動画一覧を表示'}
                     </button>
 
-                    {/* アコーディオン展開部分 */}
                     {isExpanded && (
                       <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
                         {items.map((item: any, idx) => (
