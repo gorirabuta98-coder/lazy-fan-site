@@ -18,8 +18,7 @@ interface VideoListProps {
   totalCount: number
   playlists?: PlaylistWithItems[]
   pageSize: number
-  currentPart: number | 'all'
-  allVideos?: Video[]
+  currentPart: number
 }
 
 export function VideoList({
@@ -27,34 +26,23 @@ export function VideoList({
   totalCount,
   playlists: initialPlaylists = [],
   pageSize,
-  currentPart: initialPart,
-  allVideos = [],
+  currentPart,
 }: VideoListProps) {
   const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState('')
   const [playlists, setPlaylists] = useState<PlaylistWithItems[]>(initialPlaylists)
   const [activeTab, setActiveTab] = useState<'all' | 'mylist'>('all')
   const [selectedVideoForModal, setSelectedVideoForModal] = useState<Video | null>(null)
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([])
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null)
-  
-  // 「すべて」ボタン押下、または検索キーワード入力時は全動画を対象にする
-  const isSearching = searchQuery.trim() !== ''
-  const isAllMode = initialPart === 'all' || isSearching
-
-  const baseSource = (isAllMode && allVideos.length > 0) ? allVideos : initialVideos
-  const filteredVideos = baseSource.filter((video) =>
-    video.title.toLowerCase().includes(searchQuery.toLowerCase())
-  )
 
   const totalParts = Math.ceil(totalCount / pageSize)
 
   // ページ内全選択 / 解除
   const handleToggleSelectAll = () => {
-    if (selectedVideoIds.length === filteredVideos.length) {
+    if (selectedVideoIds.length === initialVideos.length) {
       setSelectedVideoIds([])
     } else {
-      setSelectedVideoIds(filteredVideos.map((v) => v.id))
+      setSelectedVideoIds(initialVideos.map((v) => v.id))
     }
   }
 
@@ -68,7 +56,7 @@ export function VideoList({
   // 複数選択時の追加
   const handleBatchAddToMyList = () => {
     if (selectedVideoIds.length === 0) return
-    const firstSelected = filteredVideos.find((v) => v.id === selectedVideoIds[0])
+    const firstSelected = initialVideos.find((v) => v.id === selectedVideoIds[0])
     if (firstSelected) {
       setSelectedVideoForModal(firstSelected)
     }
@@ -127,46 +115,25 @@ export function VideoList({
                 onClick={handleToggleSelectAll}
                 className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-xl font-bold transition"
               >
-                {selectedVideoIds.length === filteredVideos.length && filteredVideos.length > 0
+                {selectedVideoIds.length === initialVideos.length && initialVideos.length > 0
                   ? '全解除'
                   : 'ページ内全選択'}
               </button>
-
-              <div className="relative flex-1 sm:w-64">
-                <input
-                  type="text"
-                  placeholder="全動画からタイトル検索..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
-                <span className="absolute left-2.5 top-2 text-gray-400 text-xs">🔍</span>
-              </div>
             </div>
           </div>
 
-          {/* Part選択エリア（「すべて」枠を追加） */}
+          {/* Part選択エリア */}
           <div className="space-y-2 pt-2 border-t border-gray-100">
             <p className="text-xs text-gray-400 font-medium">
-              ページ選択 (すべて ＋ Part 1 ～ Part {totalParts})
+              ページ選択 (Part 1 ～ Part {totalParts})
             </p>
             <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => router.push('/?part=all')}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                  initialPart === 'all'
-                    ? 'bg-red-600 text-white font-bold'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                すべて (全件)
-              </button>
               {Array.from({ length: totalParts }, (_, i) => i + 1).map((p) => (
                 <button
                   key={p}
                   onClick={() => router.push(`/?part=${p}`)}
                   className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                    initialPart === p && !isSearching
+                    currentPart === p
                       ? 'bg-red-600 text-white font-bold'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
@@ -179,7 +146,7 @@ export function VideoList({
 
           {/* 動画カードグリッド */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredVideos.map((video) => {
+            {initialVideos.map((video) => {
               const isSelected = selectedVideoIds.includes(video.id)
               const thumb =
                 video.thumbnailUrl ||
