@@ -64,34 +64,47 @@ export function VideoList({
 
   return (
     <div className="space-y-6">
-      {/* ナビゲーション切り替え（動画一覧 / マイリスト） */}
-      <div className="flex gap-2 mb-2">
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-            activeTab === 'all'
-              ? 'bg-red-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-100'
-          }`}
-        >
-          動画一覧
-        </button>
-        <button
-          onClick={() => setActiveTab('mylist')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-            activeTab === 'mylist'
-              ? 'bg-red-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-100'
-          }`}
-        >
-          📁 マイリスト一覧
-        </button>
-      </div>
+      {/* ヘッダーエリア（右上に選択タブを集約） */}
+      <header className="flex justify-between items-center py-4 border-b border-gray-100 mb-6">
+        <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">
+          レイクレ <span className="text-red-600">Fan Site</span>
+        </h1>
+
+        <div className="flex items-center gap-3">
+          <button className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-2.5 rounded-full transition shadow-sm">
+            YouTube同期
+          </button>
+
+          {/* 右上に集約したタブ切替ボタン */}
+          <div className="flex gap-1.5 bg-gray-100 p-1 rounded-2xl">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === 'all'
+                  ? 'bg-red-600 text-white shadow-sm'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+            >
+              動画一覧
+            </button>
+            <button
+              onClick={() => setActiveTab('mylist')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                activeTab === 'mylist'
+                  ? 'bg-red-600 text-white shadow-sm'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+            >
+              📁 マイリスト
+            </button>
+          </div>
+        </div>
+      </header>
 
       {/* 動画一覧表示 */}
       {activeTab === 'all' && (
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
-          {/* ヘッダーエリア */}
+          {/* 一括操作エリア */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="flex items-center gap-3">
               <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -161,7 +174,6 @@ export function VideoList({
                     isSelected ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-100'
                   }`}
                 >
-                  {/* サムネイル ＆ チェックボックス */}
                   <div className="relative aspect-video">
                     <button
                       onClick={() => toggleSelectVideo(video.id)}
@@ -176,7 +188,6 @@ export function VideoList({
                     <img src={thumb} alt={video.title} className="w-full h-full object-cover" />
                   </div>
 
-                  {/* 動画情報 ＆ ボタン */}
                   <div className="p-3 space-y-3 flex-1 flex flex-col justify-between">
                     <div>
                       <p className="text-xs font-bold text-gray-800 line-clamp-2 leading-snug">
