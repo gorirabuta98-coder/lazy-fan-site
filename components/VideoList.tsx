@@ -64,75 +64,65 @@ export function VideoList({
 
   return (
     <div className="space-y-6">
-      {/* ヘッダーエリア（右上に選択タブを集約） */}
-      <header className="flex justify-between items-center py-4 border-b border-gray-100 mb-6">
-        <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">
-          レイクレ <span className="text-red-600">Fan Site</span>
-        </h1>
-
+      {/* タブ切り替え ＆ 右上アクションバー */}
+      <div className="flex justify-between items-center py-2 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <button className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-2.5 rounded-full transition shadow-sm">
-            YouTube同期
-          </button>
-
-          {/* 右上に集約したタブ切替ボタン */}
-          <div className="flex gap-1.5 bg-gray-100 p-1 rounded-2xl">
-            <button
-              onClick={() => setActiveTab('all')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                activeTab === 'all'
-                  ? 'bg-red-600 text-white shadow-sm'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-            >
-              動画一覧
-            </button>
-            <button
-              onClick={() => setActiveTab('mylist')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                activeTab === 'mylist'
-                  ? 'bg-red-600 text-white shadow-sm'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-            >
-              📁 マイリスト
-            </button>
-          </div>
+          {activeTab === 'all' && (
+            <>
+              <h2 className="text-lg font-bold text-gray-800">📺 動画一覧</h2>
+              <span className="bg-gray-100 text-gray-500 text-xs px-2.5 py-0.5 rounded-full font-medium">
+                全 {totalCount} 件
+              </span>
+            </>
+          )}
         </div>
-      </header>
+
+        {/* タブ切替ボタン（選択中が赤くなる） */}
+        <div className="flex gap-1.5 bg-gray-100 p-1 rounded-2xl">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+              activeTab === 'all'
+                ? 'bg-red-600 text-white shadow-sm'
+                : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+            }`}
+          >
+            動画一覧
+          </button>
+          <button
+            onClick={() => setActiveTab('mylist')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'mylist'
+                ? 'bg-red-600 text-white shadow-sm'
+                : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+            }`}
+          >
+            📁 マイリスト
+          </button>
+        </div>
+      </div>
 
       {/* 動画一覧表示 */}
       {activeTab === 'all' && (
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
           {/* 一括操作エリア */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                📺 動画一覧
-              </h2>
-              <span className="bg-gray-100 text-gray-500 text-xs px-2.5 py-0.5 rounded-full font-medium">
-                全 {totalCount} 件
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              {selectedVideoIds.length > 0 && (
-                <button
-                  onClick={handleBatchAddToMyList}
-                  className="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-red-700 transition"
-                >
-                  選択中 ({selectedVideoIds.length}) を追加
-                </button>
-              )}
+          <div className="flex justify-end items-center gap-2">
+            {selectedVideoIds.length > 0 && (
               <button
-                onClick={handleToggleSelectAll}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-xl font-bold transition"
+                onClick={handleBatchAddToMyList}
+                className="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-red-700 transition"
               >
-                {selectedVideoIds.length === initialVideos.length && initialVideos.length > 0
-                  ? '全解除'
-                  : 'ページ内全選択'}
+                選択中 ({selectedVideoIds.length}) を追加
               </button>
-            </div>
+            )}
+            <button
+              onClick={handleToggleSelectAll}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-xl font-bold transition"
+            >
+              {selectedVideoIds.length === initialVideos.length && initialVideos.length > 0
+                ? '全解除'
+                : 'ページ内全選択'}
+            </button>
           </div>
 
           {/* Part選択エリア */}

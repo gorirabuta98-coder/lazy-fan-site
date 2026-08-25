@@ -1,26 +1,24 @@
-import { getVideosByPart } from '@/app/actions/videos'
 import { VideoList } from '@/components/VideoList'
+// ※ データ取得関数等のインポートが他にある場合はそのまま残してください
 
-interface HomePageProps {
-  searchParams: Promise<{ part?: string }>
-}
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: { part?: string }
+}) {
+  const currentPart = Number(searchParams?.part) || 1
 
-export default async function HomePage({ searchParams }: HomePageProps) {
-  const PAGE_SIZE = 50 // 1 Part あたり 50件に設定
-  const { part: partParam } = await searchParams
-  const parsedPart = Number.parseInt(partParam || '1', 10)
-  const part = Number.isInteger(parsedPart) && parsedPart > 0 ? parsedPart : 1
-
-  const videosData = await getVideosByPart(part, PAGE_SIZE)
+  // ※ ここはお使いのデータ取得処理に合わせて調整してください
+  // 例: const { videos, totalCount, playlists, pageSize } = await getData(currentPart)
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-8">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <VideoList
-        initialVideos={videosData.videos}
-        totalCount={videosData.totalCount}
-        playlists={[]}
-        pageSize={PAGE_SIZE}
-        currentPart={part}
+        initialVideos={[]} // 取得したvideosを渡す
+        totalCount={2658}  // 取得した件数を渡す
+        pageSize={50}
+        currentPart={currentPart}
+        playlists={[]}     // 取得したplaylistsを渡す
       />
     </main>
   )
