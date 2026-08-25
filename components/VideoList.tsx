@@ -37,7 +37,6 @@ export function VideoList({
 
   const totalParts = Math.ceil(totalCount / pageSize)
 
-  // ページ内全選択 / 解除
   const handleToggleSelectAll = () => {
     if (selectedVideoIds.length === initialVideos.length) {
       setSelectedVideoIds([])
@@ -46,14 +45,12 @@ export function VideoList({
     }
   }
 
-  // 個別選択切り替え
   const toggleSelectVideo = (id: string) => {
     setSelectedVideoIds((prev) =>
       prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
     )
   }
 
-  // 複数選択時の追加
   const handleBatchAddToMyList = () => {
     if (selectedVideoIds.length === 0) return
     const firstSelected = initialVideos.find((v) => v.id === selectedVideoIds[0])
@@ -64,12 +61,14 @@ export function VideoList({
 
   return (
     <div className="space-y-6">
-      {/* タブ切り替え ＆ 右上アクションバー */}
-      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+      {/* 上部エリア（件数表示 ＆ 右上：YouTube同期 + タブ） */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-2 border-b border-gray-100 gap-4">
         <div className="flex items-center gap-3">
           {activeTab === 'all' && (
             <>
-              <h2 className="text-lg font-bold text-gray-800">📺 動画一覧</h2>
+              <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                📺 動画一覧
+              </h2>
               <span className="bg-gray-100 text-gray-500 text-xs px-2.5 py-0.5 rounded-full font-medium">
                 全 {totalCount} 件
               </span>
@@ -77,28 +76,34 @@ export function VideoList({
           )}
         </div>
 
-        {/* タブ切替ボタン（選択中が赤くなる） */}
-        <div className="flex gap-1.5 bg-gray-100 p-1 rounded-2xl">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-              activeTab === 'all'
-                ? 'bg-red-600 text-white shadow-sm'
-                : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-            }`}
-          >
-            動画一覧
+        {/* 右上操作エリア（YouTube同期 ＋ タブ切替） */}
+        <div className="flex items-center gap-3">
+          <button className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm">
+            YouTube同期
           </button>
-          <button
-            onClick={() => setActiveTab('mylist')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-              activeTab === 'mylist'
-                ? 'bg-red-600 text-white shadow-sm'
-                : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-            }`}
-          >
-            📁 マイリスト
-          </button>
+
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-2xl">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                activeTab === 'all'
+                  ? 'bg-red-600 text-white shadow-sm'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+            >
+              動画一覧
+            </button>
+            <button
+              onClick={() => setActiveTab('mylist')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                activeTab === 'mylist'
+                  ? 'bg-red-600 text-white shadow-sm'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+            >
+              📁 マイリスト
+            </button>
+          </div>
         </div>
       </div>
 
@@ -297,7 +302,6 @@ export function VideoList({
         </div>
       )}
 
-      {/* モーダル */}
       {selectedVideoForModal && (
         <AddToListModal
           videoId={selectedVideoForModal.id}
