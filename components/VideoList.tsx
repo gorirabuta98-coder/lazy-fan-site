@@ -291,122 +291,117 @@ export function VideoList({
   }
 
   return (
-    <div className="space-y-6">
-      {/* 上部ヘッダー ＆ タブ切替ボタン */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-2 border-b border-gray-100 gap-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            {activeTab === 'all' && '📺 動画一覧'}
-            {activeTab === 'search' && '🔍 動画検索'}
-            {activeTab === 'mylist' && '📁 マイリスト'}
-          </h2>
-          {activeTab === 'all' && (
-            <span className="bg-gray-100 text-gray-500 text-xs px-2.5 py-0.5 rounded-full font-medium">
-              全 {totalCount} 件
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleSync}
-            disabled={isSyncing}
-            className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
-          >
-            {isSyncing ? (
-              <>
-                <span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full"></span>
-                同期中...
-              </>
-            ) : (
-              'YouTube同期'
+    <div className="space-y-4 sm:space-y-6 pb-20 sm:pb-0">
+      {/* 📱 上部ヘッダー ＆ ナビゲーション */}
+      <div className="flex flex-col gap-3 py-2 border-b border-gray-100">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-1.5">
+              {activeTab === 'all' && '📺 動画一覧'}
+              {activeTab === 'search' && '🔍 動画検索'}
+              {activeTab === 'mylist' && '📁 マイリスト'}
+            </h2>
+            {activeTab === 'all' && (
+              <span className="bg-gray-100 text-gray-500 text-[10px] sm:text-xs px-2 py-0.5 rounded-full font-medium">
+                {totalCount}件
+              </span>
             )}
-          </button>
-
-          {/* 3分割タブナビゲーション */}
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-2xl">
-            <button
-              onClick={() => {
-                setActiveTab('all')
-                setSelectedVideoIds([])
-              }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                activeTab === 'all'
-                  ? 'bg-red-600 text-white shadow-sm'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-            >
-              動画一覧
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('search')
-                setSelectedVideoIds([])
-              }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
-                activeTab === 'search'
-                  ? 'bg-red-600 text-white shadow-sm'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-            >
-              🔍 動画検索
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('mylist')
-                setSelectedVideoIds([])
-              }}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
-                activeTab === 'mylist'
-                  ? 'bg-red-600 text-white shadow-sm'
-                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-            >
-              📁 マイリスト
-            </button>
           </div>
 
-          <HeaderAuth />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSync}
+              disabled={isSyncing}
+              className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-500 text-white font-bold text-[11px] sm:text-xs px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl transition shadow-sm flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+            >
+              {isSyncing ? (
+                <>
+                  <span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full"></span>
+                  同期中
+                </>
+              ) : (
+                '同期'
+              )}
+            </button>
+            <HeaderAuth />
+          </div>
+        </div>
+
+        {/* 📱 横スクロール・押しやすい3分割タブ */}
+        <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-2xl text-center">
+          <button
+            onClick={() => {
+              setActiveTab('all')
+              setSelectedVideoIds([])
+            }}
+            className={`py-2 rounded-xl text-xs font-bold transition ${
+              activeTab === 'all'
+                ? 'bg-red-600 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            動画一覧
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('search')
+              setSelectedVideoIds([])
+            }}
+            className={`py-2 rounded-xl text-xs font-bold transition ${
+              activeTab === 'search'
+                ? 'bg-red-600 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            🔍 検索
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('mylist')
+              setSelectedVideoIds([])
+            }}
+            className={`py-2 rounded-xl text-xs font-bold transition ${
+              activeTab === 'mylist'
+                ? 'bg-red-600 text-white shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            📁 マイリスト
+          </button>
         </div>
       </div>
 
       {/* 1️⃣ タブ：動画一覧 */}
       {activeTab === 'all' && (
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
-          <div className="flex justify-between items-center">
-            <div className="space-y-1">
-              <p className="text-xs text-gray-400 font-medium">
-                ページ選択 (Part 1 ～ Part {totalParts})
-              </p>
-              <div className="flex flex-wrap gap-1.5">
+        <div className="bg-white p-3 sm:p-6 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 space-y-4 sm:space-y-6">
+          {/* 📱 ページネーション（横スクロール可能に） */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+              <div className="flex items-center gap-1.5 min-w-max">
+                <span className="text-[10px] sm:text-xs text-gray-400 font-medium mr-1">Part:</span>
                 {Array.from({ length: totalParts }, (_, i) => i + 1).map((p) => (
                   <button
                     key={p}
                     onClick={() => router.push(`/?part=${p}`)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
                       currentPart === p
                         ? 'bg-red-600 text-white font-bold'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
-                    Part {p}
+                    {p}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="flex justify-end items-center gap-2">
-              {selectedVideoIds.length > 0 && (
-                <button
-                  onClick={handleBatchAddToMyList}
-                  className="bg-red-600 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-red-700 transition"
-                >
-                  選択中 ({selectedVideoIds.length}) をマイリストに追加
-                </button>
-              )}
+            <div className="flex justify-between sm:justify-end items-center gap-2 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-gray-100">
+              <span className="text-[11px] text-gray-400 sm:hidden">
+                {selectedVideoIds.length > 0 ? `${selectedVideoIds.length}件選択中` : ''}
+              </span>
               <button
                 onClick={handleToggleSelectAll}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-2 rounded-xl font-bold transition whitespace-nowrap"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-xl font-bold transition ml-auto sm:ml-0"
               >
                 {selectedVideoIds.length === initialVideos.length && initialVideos.length > 0
                   ? '全解除'
@@ -415,7 +410,8 @@ export function VideoList({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {/* 📱 スマホ2列グリッド表示 (grid-cols-2) */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
             {initialVideos.map((video) => {
               const isSelected = selectedVideoIds.includes(video.id)
               const thumb =
@@ -427,17 +423,18 @@ export function VideoList({
               return (
                 <div
                   key={video.id}
-                  className={`relative bg-white border rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between transition hover:shadow-md ${
+                  className={`relative bg-white border rounded-xl sm:rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between transition ${
                     isSelected ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-100'
                   }`}
                 >
                   <div className="relative aspect-video">
+                    {/* 📱 スマホで押しやすい大きめチェックボタン */}
                     <button
                       onClick={() => toggleSelectVideo(video.id)}
-                      className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-lg border-2 transition flex items-center justify-center ${
+                      className={`absolute top-1.5 left-1.5 z-10 w-7 h-7 rounded-lg border-2 transition flex items-center justify-center ${
                         isSelected
                           ? 'bg-red-600 border-red-600 text-white'
-                          : 'border-white/80 bg-black/30 hover:bg-black/50'
+                          : 'border-white/80 bg-black/40 hover:bg-black/60'
                       }`}
                     >
                       {isSelected && <span className="text-xs font-bold">✓</span>}
@@ -445,20 +442,20 @@ export function VideoList({
                     <img src={thumb} alt={video.title} className="w-full h-full object-cover" />
                   </div>
 
-                  <div className="p-3 space-y-3 flex-1 flex flex-col justify-between">
+                  <div className="p-2 sm:p-3 space-y-2 flex-1 flex flex-col justify-between">
                     <div>
-                      <p className="text-xs font-bold text-gray-800 line-clamp-2 leading-snug">
+                      <p className="text-[11px] sm:text-xs font-bold text-gray-800 line-clamp-2 leading-snug">
                         {video.title}
                       </p>
                       {dateStr && (
-                        <p className="text-[10px] text-gray-400 mt-1">{dateStr.split('T')[0]}</p>
+                        <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1">{dateStr.split('T')[0]}</p>
                       )}
                     </div>
                     <button
                       onClick={() => handleSingleAddToMyList(video)}
-                      className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold border border-gray-100 transition"
+                      className="w-full py-1.5 sm:py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold border border-gray-100 transition active:scale-95"
                     >
-                      + マイリストに追加
+                      + リスト追加
                     </button>
                   </div>
                 </div>
@@ -470,18 +467,19 @@ export function VideoList({
 
       {/* 2️⃣ タブ：動画検索 */}
       {activeTab === 'search' && (
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
-          <form onSubmit={handleSearch} className="flex gap-3 max-w-2xl mx-auto">
+        <div className="bg-white p-3 sm:p-6 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 space-y-4 sm:space-y-6">
+          <form onSubmit={handleSearch} className="flex gap-2 max-w-2xl mx-auto">
             <div className="relative flex-1">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 text-base pointer-events-none">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 text-sm pointer-events-none">
                 🔍
               </span>
+              {/* 💡 iOSの自動ズーム防止のため text-base sm:text-sm */}
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="全動画からキーワード検索（例: ドッキリ, 大食い）"
-                className="w-full pl-11 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
+                placeholder="キーワード検索（例: ドッキリ）"
+                className="w-full pl-9 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
                 autoFocus
               />
               {searchQuery && (
@@ -492,7 +490,7 @@ export function VideoList({
                     setSearchResults([])
                     setHasSearched(false)
                   }}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 text-sm font-bold"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 text-xs font-bold"
                 >
                   ✕
                 </button>
@@ -501,56 +499,44 @@ export function VideoList({
             <button
               type="submit"
               disabled={isSearching || !searchQuery.trim()}
-              className="bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white font-bold text-xs px-6 py-3 rounded-2xl transition cursor-pointer"
+              className="bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer flex-shrink-0"
             >
-              {isSearching ? '検索中...' : '検索'}
+              {isSearching ? '検索中' : '検索'}
             </button>
           </form>
 
           {hasSearched && !isSearching && (
             <div className="flex justify-between items-center pt-2 border-t border-gray-100">
               <p className="text-xs font-bold text-gray-600">
-                「{searchQuery}」の検索結果: <span className="text-red-600">{searchResults.length}</span> 件
+                検索結果: <span className="text-red-600">{searchResults.length}</span> 件
               </p>
 
               {searchResults.length > 0 && (
-                <div className="flex justify-end items-center gap-2">
-                  {selectedVideoIds.length > 0 && (
-                    <button
-                      onClick={handleBatchAddToMyList}
-                      className="bg-red-600 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-red-700 transition"
-                    >
-                      選択中 ({selectedVideoIds.length}) をマイリストに追加
-                    </button>
-                  )}
-                  <button
-                    onClick={handleToggleSelectAll}
-                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-2 rounded-xl font-bold transition whitespace-nowrap"
-                  >
-                    {selectedVideoIds.length === searchResults.length
-                      ? '全解除'
-                      : '全選択'}
-                  </button>
-                </div>
+                <button
+                  onClick={handleToggleSelectAll}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-xl font-bold transition"
+                >
+                  {selectedVideoIds.length === searchResults.length ? '全解除' : '全選択'}
+                </button>
               )}
             </div>
           )}
 
           {!hasSearched && !isSearching && (
-            <div className="text-center py-16 text-gray-400 space-y-2">
-              <p className="text-3xl">🔍</p>
-              <p className="text-xs font-medium">キーワードを入力して全動画（{totalCount}件）から検索できます</p>
+            <div className="text-center py-12 text-gray-400 space-y-2">
+              <p className="text-2xl">🔍</p>
+              <p className="text-xs font-medium">全動画（{totalCount}件）から検索できます</p>
             </div>
           )}
 
           {hasSearched && !isSearching && searchResults.length === 0 && (
-            <div className="text-center py-12 text-gray-400 text-xs bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-              キーワード「{searchQuery}」に一致する動画は見つかりませんでした。
+            <div className="text-center py-8 text-gray-400 text-xs bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              一致する動画は見つかりませんでした。
             </div>
           )}
 
           {searchResults.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
               {searchResults.map((video) => {
                 const isSelected = selectedVideoIds.includes(video.id)
                 const thumb =
@@ -562,17 +548,17 @@ export function VideoList({
                 return (
                   <div
                     key={video.id}
-                    className={`relative bg-white border rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between transition hover:shadow-md ${
+                    className={`relative bg-white border rounded-xl sm:rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between transition ${
                       isSelected ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-100'
                     }`}
                   >
                     <div className="relative aspect-video">
                       <button
                         onClick={() => toggleSelectVideo(video.id)}
-                        className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-lg border-2 transition flex items-center justify-center ${
+                        className={`absolute top-1.5 left-1.5 z-10 w-7 h-7 rounded-lg border-2 transition flex items-center justify-center ${
                           isSelected
                             ? 'bg-red-600 border-red-600 text-white'
-                            : 'border-white/80 bg-black/30 hover:bg-black/50'
+                            : 'border-white/80 bg-black/40 hover:bg-black/60'
                         }`}
                       >
                         {isSelected && <span className="text-xs font-bold">✓</span>}
@@ -580,20 +566,20 @@ export function VideoList({
                       <img src={thumb} alt={video.title} className="w-full h-full object-cover" />
                     </div>
 
-                    <div className="p-3 space-y-3 flex-1 flex flex-col justify-between">
+                    <div className="p-2 sm:p-3 space-y-2 flex-1 flex flex-col justify-between">
                       <div>
-                        <p className="text-xs font-bold text-gray-800 line-clamp-2 leading-snug">
+                        <p className="text-[11px] sm:text-xs font-bold text-gray-800 line-clamp-2 leading-snug">
                           {video.title}
                         </p>
                         {dateStr && (
-                          <p className="text-[10px] text-gray-400 mt-1">{dateStr.split('T')[0]}</p>
+                          <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1">{dateStr.split('T')[0]}</p>
                         )}
                       </div>
                       <button
                         onClick={() => handleSingleAddToMyList(video)}
-                        className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold border border-gray-100 transition"
+                        className="w-full py-1.5 sm:py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold border border-gray-100 transition active:scale-95"
                       >
-                        + マイリストに追加
+                        + リスト追加
                       </button>
                     </div>
                   </div>
@@ -604,59 +590,55 @@ export function VideoList({
         </div>
       )}
 
-      {/* 3️⃣ タブ：マイリスト一覧（ログイン制御付き） */}
+      {/* 3️⃣ タブ：マイリスト一覧 */}
       {activeTab === 'mylist' && (
         !user ? (
-          <div className="bg-white p-12 rounded-3xl text-center border border-gray-100 shadow-sm space-y-4 py-16">
-            <div className="text-4xl">🔒</div>
-            <h3 className="text-base font-bold text-gray-800">マイリストの閲覧にはログインが必要です</h3>
-            <p className="text-xs text-gray-400 max-w-sm mx-auto leading-relaxed">
-              自分だけのマイリストを作成・保存するには、画面右上のボタンからログインを行ってください。
+          <div className="bg-white p-8 sm:p-12 rounded-2xl sm:rounded-3xl text-center border border-gray-100 shadow-sm space-y-3 py-12">
+            <div className="text-3xl">🔒</div>
+            <h3 className="text-sm sm:text-base font-bold text-gray-800">マイリストの閲覧にはログインが必要です</h3>
+            <p className="text-xs text-gray-400 max-w-xs mx-auto leading-relaxed">
+              画面右上のボタンからログインを行ってください。
             </p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900">マイリスト一覧</h2>
+              <h2 className="text-lg sm:text-2xl font-bold text-gray-900">マイリスト一覧</h2>
               <button
                 onClick={() => setShowCreateForm(!showCreateForm)}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3 py-2 rounded-xl transition shadow-sm flex items-center gap-1 cursor-pointer"
               >
-                ➕ 新規マイリスト作成
+                ➕ 新規作成
               </button>
             </div>
 
             {showCreateForm && (
-              <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex gap-3">
+              <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex gap-2">
                 <input
                   type="text"
-                  placeholder="好きなマイリスト名を入力（例: 神回まとめ）"
+                  placeholder="マイリスト名を入力"
                   value={newPlaylistTitle}
                   onChange={(e) => setNewPlaylistTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleCreatePlaylist()
-                  }}
-                  className="flex-1 px-4 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="flex-1 px-3 py-1.5 text-base sm:text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                   autoFocus
                 />
                 <button
                   type="button"
                   onClick={handleCreatePlaylist}
                   disabled={isCreatingList}
-                  className="bg-slate-900 hover:bg-slate-800 disabled:bg-gray-300 text-white text-xs font-bold px-5 py-2 rounded-xl transition cursor-pointer"
+                  className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-1.5 rounded-lg transition cursor-pointer"
                 >
-                  {isCreatingList ? '作成中...' : '作成'}
+                  作成
                 </button>
               </div>
             )}
 
             {playlists.length === 0 ? (
-              <div className="bg-white p-12 rounded-3xl text-center border border-gray-100 text-gray-400 text-sm space-y-3">
+              <div className="bg-white p-8 rounded-2xl text-center border border-gray-100 text-gray-400 text-xs space-y-2">
                 <p>マイリストがありません。</p>
-                <p className="text-xs text-gray-500">「➕ 新規マイリスト作成」ボタンから箱を作成してください。</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {playlists.map((pl) => {
                   const items = pl.playlist_items || []
                   const isExpanded = expandedPlaylistId === pl.id
@@ -665,7 +647,7 @@ export function VideoList({
                   return (
                     <div
                       key={pl.id}
-                      className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4"
+                      className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3"
                     >
                       <div className="flex items-center justify-between">
                         {isEditing ? (
@@ -674,26 +656,20 @@ export function VideoList({
                               type="text"
                               value={editingTitle}
                               onChange={(e) => setEditingTitle(e.target.value)}
-                              className="flex-1 px-3 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                              className="flex-1 px-2 py-1 text-base sm:text-xs border rounded-lg focus:outline-none"
                               autoFocus
                             />
                             <button
                               onClick={() => handleRenamePlaylist(pl.id)}
-                              className="bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg font-bold"
+                              className="bg-slate-900 text-white text-xs px-2.5 py-1 rounded-lg font-bold"
                             >
                               保存
                             </button>
-                            <button
-                              onClick={() => setEditingPlaylistId(null)}
-                              className="bg-gray-100 text-gray-600 text-xs px-2 py-1.5 rounded-lg"
-                            >
-                              キャンセル
-                            </button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <span className="text-amber-500 text-xl">📁</span>
-                            <h3 className="font-bold text-base text-gray-800">{pl.title}</h3>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-amber-500 text-lg">📁</span>
+                            <h3 className="font-bold text-sm text-gray-800">{pl.title}</h3>
                           </div>
                         )}
 
@@ -701,8 +677,7 @@ export function VideoList({
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => setSharingPlaylist({ id: pl.id, title: pl.title })}
-                              className="p-1.5 text-xs text-blue-500 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition flex items-center gap-1 font-bold"
-                              title="共有・URLコピー"
+                              className="p-1 text-xs text-blue-500 font-bold hover:bg-blue-50 rounded-lg"
                             >
                               🔗 共有
                             </button>
@@ -711,15 +686,13 @@ export function VideoList({
                                 setEditingPlaylistId(pl.id)
                                 setEditingTitle(pl.title)
                               }}
-                              className="p-1.5 text-xs text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition"
-                              title="名前変更"
+                              className="p-1 text-xs text-gray-400 hover:text-gray-700"
                             >
                               ✏️
                             </button>
                             <button
                               onClick={() => handleDeletePlaylist(pl.id, pl.title)}
-                              className="p-1.5 text-xs text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition"
-                              title="リスト削除"
+                              className="p-1 text-xs text-red-400 hover:text-red-600"
                             >
                               🗑️
                             </button>
@@ -727,14 +700,14 @@ export function VideoList({
                         )}
                       </div>
 
-                      <p className="text-xs text-gray-400">動画 {items.length} 件</p>
+                      <p className="text-[11px] text-gray-400">動画 {items.length} 件</p>
 
                       {items.length > 0 && !isExpanded && (
-                        <div className="flex gap-2 overflow-x-auto pb-2">
+                        <div className="flex gap-2 overflow-x-auto pb-1">
                           {items.slice(0, 4).map((item: any, idx) => (
                             <div
                               key={idx}
-                              className="w-28 flex-shrink-0 aspect-video rounded-lg overflow-hidden border border-gray-100 bg-gray-100"
+                              className="w-24 flex-shrink-0 aspect-video rounded-lg overflow-hidden border border-gray-100 bg-gray-100"
                             >
                               <img
                                 src={
@@ -752,22 +725,21 @@ export function VideoList({
 
                       <button
                         onClick={() => setExpandedPlaylistId(isExpanded ? null : pl.id)}
-                        className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-xs font-bold text-center border border-gray-100 transition cursor-pointer"
+                        className="w-full py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-xs font-bold text-center border border-gray-100 transition cursor-pointer"
                       >
-                        {isExpanded ? '▲ 動画一覧を閉じる' : '▼ 動画一覧を表示'}
+                        {isExpanded ? '▲ 閉じる' : '▼ 動画一覧を表示'}
                       </button>
 
                       {isExpanded && (
-                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
                           {items.map((item: any, idx) => (
                             <div
                               key={idx}
-                              className="relative border border-gray-100 rounded-xl overflow-hidden bg-gray-50 p-2 space-y-1 group"
+                              className="relative border border-gray-100 rounded-xl overflow-hidden bg-gray-50 p-1.5 space-y-1"
                             >
                               <button
                                 onClick={() => handleDeleteItem(pl.id, item.id, item.video_id)}
-                                className="absolute top-3 right-3 z-10 bg-black/60 hover:bg-red-600 text-white w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center transition"
-                                title="この動画をマイリストから削除"
+                                className="absolute top-2 right-2 z-10 bg-black/60 text-white w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center"
                               >
                                 ✕
                               </button>
@@ -782,7 +754,7 @@ export function VideoList({
                                   className="w-full h-full object-cover"
                                 />
                               </div>
-                              <p className="text-[10px] font-bold text-gray-700 line-clamp-2">
+                              <p className="text-[10px] font-bold text-gray-700 line-clamp-2 leading-tight">
                                 {item.title || item.video_title}
                               </p>
                             </div>
@@ -796,6 +768,29 @@ export function VideoList({
             )}
           </div>
         )
+      )}
+
+      {/* 📱 スマホ用 Sticky Bottom Bar（動画選択時に下部に浮かび上がる操作バー） */}
+      {selectedVideoIds.length > 0 && (
+        <div className="fixed bottom-4 left-4 right-4 z-40 bg-slate-900/95 backdrop-blur text-white p-3 rounded-2xl shadow-2xl flex justify-between items-center max-w-md mx-auto animate-in slide-in-from-bottom-5">
+          <div className="text-xs pl-2">
+            <span className="font-bold text-red-400">{selectedVideoIds.length}</span> 件選択中
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedVideoIds([])}
+              className="text-xs text-gray-400 hover:text-white px-2 py-1.5"
+            >
+              解除
+            </button>
+            <button
+              onClick={handleBatchAddToMyList}
+              className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm"
+            >
+              マイリストに追加
+            </button>
+          </div>
+        </div>
       )}
 
       {/* モーダル群 */}

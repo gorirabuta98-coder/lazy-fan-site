@@ -36,7 +36,6 @@ export default function AddToListModal({
     setLoadingPlaylistId(playlistId)
 
     try {
-      // 💡 Promise.all で選択された全動画を一括で非同期登録
       const requests = selectedVideos.map((video) =>
         fetch(`/api/playlists/${playlistId}/items`, {
           method: 'POST',
@@ -54,7 +53,6 @@ export default function AddToListModal({
 
       await Promise.all(requests)
 
-      // 最新のマイリスト一覧を取得して更新
       const res = await fetch('/api/playlists')
       if (res.ok) {
         const updated = await res.json()
@@ -72,15 +70,16 @@ export default function AddToListModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-5 shadow-xl">
+    <div className="fixed inset-0 bg-black/60 z-50 flex sm:items-center items-end justify-center p-0 sm:p-4 animate-in fade-in">
+      {/* 📱 スマホでは画面下に固定されたボトムシート風になる */}
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 space-y-4 shadow-xl max-h-[85vh] overflow-y-auto">
         <div className="flex justify-between items-center border-b border-gray-100 pb-3">
           <h3 className="font-bold text-gray-800 text-sm">
             マイリストに追加 ({selectedVideos.length} 件選択中)
           </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-sm font-bold"
+            className="text-gray-400 hover:text-gray-600 text-sm font-bold p-1"
           >
             ✕
           </button>
@@ -102,7 +101,7 @@ export default function AddToListModal({
           ))}
         </div>
 
-        {/* マイリスト選択一覧 */}
+        {/* マイリスト選択ボタン */}
         <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
           {playlists.length === 0 ? (
             <p className="text-xs text-gray-400 text-center py-4">
@@ -114,12 +113,12 @@ export default function AddToListModal({
                 key={pl.id}
                 disabled={loadingPlaylistId === pl.id}
                 onClick={() => handleAddToPlaylist(pl.id)}
-                className="w-full text-left p-3 rounded-2xl bg-gray-50 hover:bg-gray-100 border border-gray-100 flex items-center justify-between transition group cursor-pointer disabled:opacity-50"
+                className="w-full text-left p-3.5 rounded-2xl bg-gray-50 hover:bg-gray-100 border border-gray-100 flex items-center justify-between transition group cursor-pointer disabled:opacity-50 active:scale-98"
               >
                 <span className="text-xs font-bold text-gray-700 group-hover:text-red-600">
                   📁 {pl.title}
                 </span>
-                <span className="text-[10px] text-gray-400">
+                <span className="text-[10px] text-gray-400 font-medium">
                   {loadingPlaylistId === pl.id ? '追加中...' : '+ 追加'}
                 </span>
               </button>
