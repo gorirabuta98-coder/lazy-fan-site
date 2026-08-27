@@ -63,7 +63,10 @@ export function VideoList({
 
   const totalParts = Math.ceil(totalCount / pageSize)
 
-  // 🔍 全動画（2,663件〜）を対象とした Supabase 直接検索
+  // 現在表示中の動画リスト
+  const currentTabVideos = activeTab === 'all' ? initialVideos : searchResults
+
+  // 🔍 全動画を対象とした検索処理
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     if (!searchQuery.trim()) return
@@ -222,8 +225,6 @@ export function VideoList({
     }
   }
 
-  const currentTabVideos = activeTab === 'all' ? initialVideos : searchResults
-
   const handleToggleSelectAll = () => {
     if (selectedVideoIds.length === currentTabVideos.length) {
       setSelectedVideoIds([])
@@ -238,8 +239,17 @@ export function VideoList({
     )
   }
 
+  // 💡 複数選択状態も考慮して追加対象を決定
   const handleSingleAddToMyList = (video: Video) => {
-    setSelectedVideosForModal([video])
+    if (selectedVideoIds.length > 0) {
+      const targets = currentTabVideos.filter((v) => selectedVideoIds.includes(v.id))
+      if (!selectedVideoIds.includes(video.id)) {
+        targets.push(video)
+      }
+      setSelectedVideosForModal(targets)
+    } else {
+      setSelectedVideosForModal([video])
+    }
   }
 
   const handleBatchAddToMyList = () => {
