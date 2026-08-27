@@ -18,7 +18,7 @@ export async function createClient() {
               cookieStore.set(name, value, options)
             )
           } catch {
-            // Server Componentからの呼び出し時は無視
+            // Server Componentからの呼び出し時の警告を無視
           }
         },
       },

@@ -1,62 +1,55 @@
-import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
 
 // マイリスト一覧取得
 export async function GET() {
-  try {
-    const supabase = await createClient()
+  const supabase = await createClient()
 
-    const { data: playlists, error } = await supabase
-      .from('playlists')
-      .select('*, playlist_items(*)')
-      .order('created_at', { ascending: false })
+  // ログインユーザー取得
+  const { data: { user } } = await supabase.auth.getUser()
 
-    if (error) {
-      console.error('GET Playlists Error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json(playlists || [])
-  } catch (err: any) {
-    console.error('GET Server Error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  if (!user) {
+    return NextResponse.json([], { status: 200 })
   }
+
+  const { data, error } = await supabase
+    .from('playlists')
+    .select('*, playlist_items(*)')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json(data)
 }
 
-// マイリスト新規作成
+// 新規マイリスト作成
 export async function POST(request: Request) {
-  try {
-    const supabase = await createClient()
-    const { title } = await request.json()
+  const supabase = await createClient()
 
-    if (!title || !title.trim()) {
-      return NextResponse.json({ error: 'タイトルが必要です' }, { status: 400 })
-    }
+  const { data: { user } } = await supabase.auth.getUser()
 
-    // ユーザー情報の取得（ログイン/匿名ユーザー）
-    const { data: { user } } = await supabase.auth.getUser()
-
-    const insertPayload: { title: string; user_id?: string } = {
-      title: title.trim(),
-    }
-
-    if (user) {
-      insertPayload.user_id = user.id
-    }
-
-    const { data, error } = await supabase
-      .from('playlists')
-      .insert([insertPayload])
-      .select()
-
-    if (error) {
-      console.error('Supabase Insert Error Detail:', error)
-      return NextResponse.json({ error: error.message, details: error }, { status: 500 })
-    }
-
-    return NextResponse.json(data[0])
-  } catch (err: any) {
-    console.error('POST Server Error:', err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  if (!user) {
+    return NextResponse.json({ error: 'ログインが必要です' }, { status: 401 })
   }
+
+  const { title } = await request.json()
+
+  if (!title) {
+    return NextResponse.json({ error: 'タイトルが必要です' }, { status: 400 })
+  }
+
+  const { data, error } = await supabase
+    .from('playlists')
+    .insert([{ title, user_id: user.id }])
+    .select()
+    .single()
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json(data)
 }
