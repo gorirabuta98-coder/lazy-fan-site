@@ -46,6 +46,9 @@ export function VideoList({
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
 
+  // 🔗 開く先選択モーダル用State
+  const [targetVideo, setTargetVideo] = useState<{ id: string; title: string } | null>(null)
+
   // 🔍 動画検索タブ用State
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Video[]>([])
@@ -65,9 +68,6 @@ export function VideoList({
   const [editingTitle, setEditingTitle] = useState('')
 
   const totalParts = Math.ceil(totalCount / pageSize)
-
-  // 現在表示中の動画リスト
-  const currentTabVideos = activeTab === 'all' ? initialVideos : searchResults
 
   // 🔒 ログイン状態の監視
   useEffect(() => {
@@ -246,6 +246,8 @@ export function VideoList({
     }
   }
 
+  const currentTabVideos = activeTab === 'all' ? initialVideos : searchResults
+
   const handleToggleSelectAll = () => {
     if (selectedVideoIds.length === currentTabVideos.length) {
       setSelectedVideoIds([])
@@ -260,7 +262,6 @@ export function VideoList({
     )
   }
 
-  // 🔒 ログインチェック付き追加処理 (1件)
   const handleSingleAddToMyList = (video: Video) => {
     if (!user) {
       alert('マイリスト機能を利用するにはログインが必要です。画面右上のボタンからログインしてください。')
@@ -278,7 +279,6 @@ export function VideoList({
     }
   }
 
-  // 🔒 ログインチェック付き追加処理 (一括)
   const handleBatchAddToMyList = () => {
     if (!user) {
       alert('マイリスト機能を利用するにはログインが必要です。画面右上のボタンからログインしてください。')
@@ -288,6 +288,90 @@ export function VideoList({
     if (selectedVideoIds.length === 0) return
     const targets = currentTabVideos.filter((v) => selectedVideoIds.includes(v.id))
     setSelectedVideosForModal(targets)
+  }
+
+  // 📲 YouTubeアプリまたはブラウザで開く処理
+  const openInApp = (videoId: string) => {
+    // iOS / Android アプリ起動用スキーム
+    window.location.href = `youtube://watch?v=${videoId}`
+    setTargetVideo(null)
+  }
+
+  const openInBrowser = (videoId: string) => {
+    window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank', 'noopener,noreferrer')
+    setTargetVideo(null)
+  }
+
+  // 🎬 動画カード共通レンダリング関数
+  const renderVideoCard = (video: Video) => {
+    const isSelected = selectedVideoIds.includes(video.id)
+    const thumb =
+      video.thumbnailUrl ||
+      video.thumbnail_url ||
+      `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`
+    const dateStr = video.publishedAt || video.published_at || ''
+
+    return (
+      <div
+        key={video.id}
+        className={`relative bg-white border rounded-xl sm:rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between transition ${
+          isSelected ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-100'
+        }`}
+      >
+        {/* 🎬 サムネイル（タップで開く先選択モーダル表示） */}
+        <div
+          onClick={() => setTargetVideo({ id: video.id, title: video.title })}
+          className="relative aspect-video cursor-pointer group"
+        >
+          {/* チェックボックス */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleSelectVideo(video.id)
+            }}
+            className={`absolute top-1.5 left-1.5 z-10 w-7 h-7 rounded-lg border-2 transition flex items-center justify-center ${
+              isSelected
+                ? 'bg-red-600 border-red-600 text-white'
+                : 'border-white/80 bg-black/40 hover:bg-black/60'
+            }`}
+          >
+            {isSelected && <span className="text-xs font-bold">✓</span>}
+          </button>
+
+          <img src={thumb} alt={video.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+
+          {/* アイコン表示 */}
+          <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition flex items-center justify-center">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-red-600/90 text-white flex items-center justify-center shadow-md group-hover:scale-110 transition">
+              <span className="text-xs sm:text-sm">▶</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-2 sm:p-3 space-y-2 flex-1 flex flex-col justify-between">
+          <div
+            onClick={() => setTargetVideo({ id: video.id, title: video.title })}
+            className="cursor-pointer"
+          >
+            <p className="text-[11px] sm:text-xs font-bold text-gray-800 line-clamp-2 leading-snug hover:text-red-600 transition">
+              {video.title}
+            </p>
+            {dateStr && (
+              <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1">{dateStr.split('T')[0]}</p>
+            )}
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleSingleAddToMyList(video)
+            }}
+            className="w-full py-1.5 sm:py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold border border-gray-100 transition active:scale-95 cursor-pointer"
+          >
+            + リスト追加
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -327,14 +411,14 @@ export function VideoList({
           </div>
         </div>
 
-        {/* 📱 横スクロール・押しやすい3分割タブ */}
+        {/* 3分割タブ */}
         <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-2xl text-center">
           <button
             onClick={() => {
               setActiveTab('all')
               setSelectedVideoIds([])
             }}
-            className={`py-2 rounded-xl text-xs font-bold transition ${
+            className={`py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
               activeTab === 'all'
                 ? 'bg-red-600 text-white shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -347,7 +431,7 @@ export function VideoList({
               setActiveTab('search')
               setSelectedVideoIds([])
             }}
-            className={`py-2 rounded-xl text-xs font-bold transition ${
+            className={`py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
               activeTab === 'search'
                 ? 'bg-red-600 text-white shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -360,7 +444,7 @@ export function VideoList({
               setActiveTab('mylist')
               setSelectedVideoIds([])
             }}
-            className={`py-2 rounded-xl text-xs font-bold transition ${
+            className={`py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
               activeTab === 'mylist'
                 ? 'bg-red-600 text-white shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
@@ -374,7 +458,6 @@ export function VideoList({
       {/* 1️⃣ タブ：動画一覧 */}
       {activeTab === 'all' && (
         <div className="bg-white p-3 sm:p-6 rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 space-y-4 sm:space-y-6">
-          {/* 📱 ページネーション（横スクロール可能に） */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div className="w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
               <div className="flex items-center gap-1.5 min-w-max">
@@ -383,7 +466,7 @@ export function VideoList({
                   <button
                     key={p}
                     onClick={() => router.push(`/?part=${p}`)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition ${
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
                       currentPart === p
                         ? 'bg-red-600 text-white font-bold'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -401,7 +484,7 @@ export function VideoList({
               </span>
               <button
                 onClick={handleToggleSelectAll}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-xl font-bold transition ml-auto sm:ml-0"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-xl font-bold transition ml-auto sm:ml-0 cursor-pointer"
               >
                 {selectedVideoIds.length === initialVideos.length && initialVideos.length > 0
                   ? '全解除'
@@ -410,57 +493,8 @@ export function VideoList({
             </div>
           </div>
 
-          {/* 📱 スマホ2列グリッド表示 (grid-cols-2) */}
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
-            {initialVideos.map((video) => {
-              const isSelected = selectedVideoIds.includes(video.id)
-              const thumb =
-                video.thumbnailUrl ||
-                video.thumbnail_url ||
-                `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`
-              const dateStr = video.publishedAt || video.published_at || ''
-
-              return (
-                <div
-                  key={video.id}
-                  className={`relative bg-white border rounded-xl sm:rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between transition ${
-                    isSelected ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-100'
-                  }`}
-                >
-                  <div className="relative aspect-video">
-                    {/* 📱 スマホで押しやすい大きめチェックボタン */}
-                    <button
-                      onClick={() => toggleSelectVideo(video.id)}
-                      className={`absolute top-1.5 left-1.5 z-10 w-7 h-7 rounded-lg border-2 transition flex items-center justify-center ${
-                        isSelected
-                          ? 'bg-red-600 border-red-600 text-white'
-                          : 'border-white/80 bg-black/40 hover:bg-black/60'
-                      }`}
-                    >
-                      {isSelected && <span className="text-xs font-bold">✓</span>}
-                    </button>
-                    <img src={thumb} alt={video.title} className="w-full h-full object-cover" />
-                  </div>
-
-                  <div className="p-2 sm:p-3 space-y-2 flex-1 flex flex-col justify-between">
-                    <div>
-                      <p className="text-[11px] sm:text-xs font-bold text-gray-800 line-clamp-2 leading-snug">
-                        {video.title}
-                      </p>
-                      {dateStr && (
-                        <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1">{dateStr.split('T')[0]}</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleSingleAddToMyList(video)}
-                      className="w-full py-1.5 sm:py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold border border-gray-100 transition active:scale-95"
-                    >
-                      + リスト追加
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
+            {initialVideos.map(renderVideoCard)}
           </div>
         </div>
       )}
@@ -473,7 +507,6 @@ export function VideoList({
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 text-sm pointer-events-none">
                 🔍
               </span>
-              {/* 💡 iOSの自動ズーム防止のため text-base sm:text-sm */}
               <input
                 type="text"
                 value={searchQuery}
@@ -514,7 +547,7 @@ export function VideoList({
               {searchResults.length > 0 && (
                 <button
                   onClick={handleToggleSelectAll}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-xl font-bold transition"
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-xl font-bold transition cursor-pointer"
                 >
                   {selectedVideoIds.length === searchResults.length ? '全解除' : '全選択'}
                 </button>
@@ -537,54 +570,7 @@ export function VideoList({
 
           {searchResults.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
-              {searchResults.map((video) => {
-                const isSelected = selectedVideoIds.includes(video.id)
-                const thumb =
-                  video.thumbnailUrl ||
-                  video.thumbnail_url ||
-                  `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`
-                const dateStr = video.publishedAt || video.published_at || ''
-
-                return (
-                  <div
-                    key={video.id}
-                    className={`relative bg-white border rounded-xl sm:rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between transition ${
-                      isSelected ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-100'
-                    }`}
-                  >
-                    <div className="relative aspect-video">
-                      <button
-                        onClick={() => toggleSelectVideo(video.id)}
-                        className={`absolute top-1.5 left-1.5 z-10 w-7 h-7 rounded-lg border-2 transition flex items-center justify-center ${
-                          isSelected
-                            ? 'bg-red-600 border-red-600 text-white'
-                            : 'border-white/80 bg-black/40 hover:bg-black/60'
-                        }`}
-                      >
-                        {isSelected && <span className="text-xs font-bold">✓</span>}
-                      </button>
-                      <img src={thumb} alt={video.title} className="w-full h-full object-cover" />
-                    </div>
-
-                    <div className="p-2 sm:p-3 space-y-2 flex-1 flex flex-col justify-between">
-                      <div>
-                        <p className="text-[11px] sm:text-xs font-bold text-gray-800 line-clamp-2 leading-snug">
-                          {video.title}
-                        </p>
-                        {dateStr && (
-                          <p className="text-[9px] sm:text-[10px] text-gray-400 mt-1">{dateStr.split('T')[0]}</p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleSingleAddToMyList(video)}
-                        className="w-full py-1.5 sm:py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold border border-gray-100 transition active:scale-95"
-                      >
-                        + リスト追加
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
+              {searchResults.map(renderVideoCard)}
             </div>
           )}
         </div>
@@ -677,7 +663,7 @@ export function VideoList({
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => setSharingPlaylist({ id: pl.id, title: pl.title })}
-                              className="p-1 text-xs text-blue-500 font-bold hover:bg-blue-50 rounded-lg"
+                              className="p-1 text-xs text-blue-500 font-bold hover:bg-blue-50 rounded-lg cursor-pointer"
                             >
                               🔗 共有
                             </button>
@@ -686,13 +672,13 @@ export function VideoList({
                                 setEditingPlaylistId(pl.id)
                                 setEditingTitle(pl.title)
                               }}
-                              className="p-1 text-xs text-gray-400 hover:text-gray-700"
+                              className="p-1 text-xs text-gray-400 hover:text-gray-700 cursor-pointer"
                             >
                               ✏️
                             </button>
                             <button
                               onClick={() => handleDeletePlaylist(pl.id, pl.title)}
-                              className="p-1 text-xs text-red-400 hover:text-red-600"
+                              className="p-1 text-xs text-red-400 hover:text-red-600 cursor-pointer"
                             >
                               🗑️
                             </button>
@@ -707,7 +693,8 @@ export function VideoList({
                           {items.slice(0, 4).map((item: any, idx) => (
                             <div
                               key={idx}
-                              className="w-24 flex-shrink-0 aspect-video rounded-lg overflow-hidden border border-gray-100 bg-gray-100"
+                              onClick={() => setTargetVideo({ id: item.video_id, title: item.title || item.video_title })}
+                              className="w-24 flex-shrink-0 aspect-video rounded-lg overflow-hidden border border-gray-100 bg-gray-100 cursor-pointer relative group"
                             >
                               <img
                                 src={
@@ -716,8 +703,11 @@ export function VideoList({
                                   `https://i.ytimg.com/vi/${item.video_id}/hqdefault.jpg`
                                 }
                                 alt={item.title || item.video_title}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover group-hover:scale-105 transition"
                               />
+                              <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                <span className="text-white text-[10px] bg-red-600/80 px-1.5 py-0.5 rounded-full">▶</span>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -735,15 +725,19 @@ export function VideoList({
                           {items.map((item: any, idx) => (
                             <div
                               key={idx}
-                              className="relative border border-gray-100 rounded-xl overflow-hidden bg-gray-50 p-1.5 space-y-1"
+                              onClick={() => setTargetVideo({ id: item.video_id, title: item.title || item.video_title })}
+                              className="relative border border-gray-100 rounded-xl overflow-hidden bg-gray-50 p-1.5 space-y-1 cursor-pointer group"
                             >
                               <button
-                                onClick={() => handleDeleteItem(pl.id, item.id, item.video_id)}
-                                className="absolute top-2 right-2 z-10 bg-black/60 text-white w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteItem(pl.id, item.id, item.video_id)
+                                }}
+                                className="absolute top-2 right-2 z-10 bg-black/60 text-white w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center hover:bg-black"
                               >
                                 ✕
                               </button>
-                              <div className="aspect-video rounded-lg overflow-hidden">
+                              <div className="aspect-video rounded-lg overflow-hidden relative">
                                 <img
                                   src={
                                     item.thumbnail_url ||
@@ -751,10 +745,13 @@ export function VideoList({
                                     `https://i.ytimg.com/vi/${item.video_id}/hqdefault.jpg`
                                   }
                                   alt={item.title || item.video_title}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover group-hover:scale-105 transition"
                                 />
+                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                  <span className="text-white text-xs font-bold bg-red-600/80 px-2 py-0.5 rounded-full">▶</span>
+                                </div>
                               </div>
-                              <p className="text-[10px] font-bold text-gray-700 line-clamp-2 leading-tight">
+                              <p className="text-[10px] font-bold text-gray-700 line-clamp-2 leading-tight group-hover:text-red-600">
                                 {item.title || item.video_title}
                               </p>
                             </div>
@@ -770,7 +767,7 @@ export function VideoList({
         )
       )}
 
-      {/* 📱 スマホ用 Sticky Bottom Bar（動画選択時に下部に浮かび上がる操作バー） */}
+      {/* 📱 スマホ用 Sticky Bottom Bar */}
       {selectedVideoIds.length > 0 && (
         <div className="fixed bottom-4 left-4 right-4 z-40 bg-slate-900/95 backdrop-blur text-white p-3 rounded-2xl shadow-2xl flex justify-between items-center max-w-md mx-auto animate-in slide-in-from-bottom-5">
           <div className="text-xs pl-2">
@@ -779,16 +776,63 @@ export function VideoList({
           <div className="flex gap-2">
             <button
               onClick={() => setSelectedVideoIds([])}
-              className="text-xs text-gray-400 hover:text-white px-2 py-1.5"
+              className="text-xs text-gray-400 hover:text-white px-2 py-1.5 cursor-pointer"
             >
               解除
             </button>
             <button
               onClick={handleBatchAddToMyList}
-              className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm"
+              className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-sm cursor-pointer"
             >
               マイリストに追加
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 📲 どこで開くか選択するポップアップモーダル */}
+      {targetVideo && (
+        <div
+          onClick={() => setTargetVideo(null)}
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-in fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl space-y-4 border border-gray-100 text-center"
+          >
+            <div className="space-y-1">
+              <h3 className="font-bold text-sm text-gray-800 line-clamp-2 leading-snug">
+                {targetVideo.title}
+              </h3>
+              <p className="text-xs text-gray-400">再生方法を選択してください</p>
+            </div>
+
+            <div className="space-y-2.5 pt-1">
+              {/* YouTubeアプリで開く（Premium広告なし） */}
+              <button
+                onClick={() => openInApp(targetVideo.id)}
+                className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-98"
+              >
+                <span>📱</span> YouTubeアプリで開く
+                <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-normal">推奨・広告なし</span>
+              </button>
+
+              {/* ブラウザで開く */}
+              <button
+                onClick={() => openInBrowser(targetVideo.id)}
+                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer active:scale-98"
+              >
+                <span>🌐</span> ブラウザで開く
+              </button>
+
+              {/* キャンセル */}
+              <button
+                onClick={() => setTargetVideo(null)}
+                className="w-full py-2 text-xs text-gray-400 font-bold hover:text-gray-600 transition cursor-pointer"
+              >
+                キャンセル
+              </button>
+            </div>
           </div>
         </div>
       )}
