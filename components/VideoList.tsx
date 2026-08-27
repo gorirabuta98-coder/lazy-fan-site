@@ -44,9 +44,11 @@ export function VideoList({
   const totalParts = Math.ceil(totalCount / pageSize)
 
   // マイリスト新規作成処理
-  const handleCreatePlaylist = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newPlaylistTitle.trim()) return
+  const handleCreatePlaylist = async () => {
+    if (!newPlaylistTitle.trim()) {
+      alert('マイリストのタイトルを入力してください。')
+      return
+    }
 
     setIsCreatingList(true)
     try {
@@ -65,10 +67,12 @@ export function VideoList({
         setNewPlaylistTitle('')
         setShowCreateForm(false)
         alert('新しいマイリストを作成しました！')
+      } else {
+        alert('マイリストの作成に失敗しました。')
       }
     } catch (error) {
       console.error('作成失敗:', error)
-      alert('マイリストの作成に失敗しました。')
+      alert('エラーが発生しました。')
     } finally {
       setIsCreatingList(false)
     }
@@ -105,12 +109,10 @@ export function VideoList({
     )
   }
 
-  // 単体追加
   const handleSingleAddToMyList = (video: Video) => {
     setSelectedVideosForModal([video])
   }
 
-  // 複数一括追加
   const handleBatchAddToMyList = () => {
     if (selectedVideoIds.length === 0) return
     const targets = initialVideos.filter((v) => selectedVideoIds.includes(v.id))
@@ -288,23 +290,27 @@ export function VideoList({
 
           {/* 新規マイリスト作成フォーム */}
           {showCreateForm && (
-            <form onSubmit={handleCreatePlaylist} className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex gap-3">
+            <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex gap-3">
               <input
                 type="text"
-                placeholder="例: 爆笑ドッキリ神回まとめ"
+                placeholder="好きなマイリスト名を入力（例: 神回まとめ）"
                 value={newPlaylistTitle}
                 onChange={(e) => setNewPlaylistTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreatePlaylist()
+                }}
                 className="flex-1 px-4 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                 autoFocus
               />
               <button
-                type="submit"
-                disabled={isCreatingList || !newPlaylistTitle.trim()}
-                className="bg-slate-900 hover:bg-slate-800 disabled:bg-gray-300 text-white text-xs font-bold px-4 py-2 rounded-xl transition"
+                type="button"
+                onClick={handleCreatePlaylist}
+                disabled={isCreatingList}
+                className="bg-slate-900 hover:bg-slate-800 disabled:bg-gray-300 text-white text-xs font-bold px-5 py-2 rounded-xl transition cursor-pointer"
               >
                 {isCreatingList ? '作成中...' : '作成'}
               </button>
-            </form>
+            </div>
           )}
 
           {playlists.length === 0 ? (
