@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AddToListModal, { PlaylistWithItems } from '@/components/AddToListModal'
 import ShareModal from '@/components/ShareModal'
+import HeaderAuth from '@/components/HeaderAuth'
 
 interface Video {
   id: string
@@ -266,6 +267,9 @@ export function VideoList({
               📁 マイリスト
             </button>
           </div>
+
+          {/* 🔑 ログイン/ログアウト切り替えボタン */}
+          <HeaderAuth />
         </div>
       </div>
 
