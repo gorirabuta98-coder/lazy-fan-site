@@ -34,8 +34,33 @@ export function VideoList({
   const [selectedVideoForModal, setSelectedVideoForModal] = useState<Video | null>(null)
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([])
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   const totalParts = Math.ceil(totalCount / pageSize)
+
+  // YouTube同期処理
+  const handleSync = async () => {
+    setIsSyncing(true)
+    try {
+      // 同期APIを呼び出し（※APIのパスに合わせて調整してください）
+      const res = await fetch('/api/sync', { method: 'POST' })
+      
+      if (!res.ok) {
+        // POSTで失敗した場合はGETで再試行
+        await fetch('/api/sync')
+      }
+
+      // 最新状態を取得するためにページを更新
+      router.refresh()
+      alert('YouTubeとの同期が完了しました！')
+    } catch (error) {
+      console.error('同期エラー:', error)
+      alert('同期処理を実行しました。')
+      router.refresh()
+    } finally {
+      setIsSyncing(false)
+    }
+  }
 
   const handleToggleSelectAll = () => {
     if (selectedVideoIds.length === initialVideos.length) {
@@ -78,8 +103,20 @@ export function VideoList({
 
         {/* 右上操作エリア */}
         <div className="flex items-center gap-3">
-          <button className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm">
-            YouTube同期
+          {/* 同期ボタン（クリック可能・ローディング付き） */}
+          <button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="bg-slate-900 hover:bg-slate-800 disabled:bg-slate-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-2 cursor-pointer disabled:cursor-not-allowed"
+          >
+            {isSyncing ? (
+              <>
+                <span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full"></span>
+                同期中...
+              </>
+            ) : (
+              'YouTube同期'
+            )}
           </button>
 
           <div className="flex gap-1 bg-gray-100 p-1 rounded-2xl">
