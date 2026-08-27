@@ -38,6 +38,9 @@ export function VideoList({
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
 
+  // 🔍 検索キーワード用State
+  const [searchQuery, setSearchQuery] = useState('')
+
   // 共有モーダル用
   const [sharingPlaylist, setSharingPlaylist] = useState<{ id: string; title: string } | null>(null)
 
@@ -51,6 +54,11 @@ export function VideoList({
   const [editingTitle, setEditingTitle] = useState('')
 
   const totalParts = Math.ceil(totalCount / pageSize)
+
+  // 🔍 検索キーワードで動画をリアルタイム絞り込み
+  const filteredVideos = initialVideos.filter((video) =>
+    video.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  )
 
   const reloadPlaylists = async () => {
     try {
@@ -189,10 +197,10 @@ export function VideoList({
   }
 
   const handleToggleSelectAll = () => {
-    if (selectedVideoIds.length === initialVideos.length) {
+    if (selectedVideoIds.length === filteredVideos.length) {
       setSelectedVideoIds([])
     } else {
-      setSelectedVideoIds(initialVideos.map((v) => v.id))
+      setSelectedVideoIds(filteredVideos.map((v) => v.id))
     }
   }
 
@@ -268,7 +276,6 @@ export function VideoList({
             </button>
           </div>
 
-          {/* 🔑 ログイン/ログアウト切り替えボタン */}
           <HeaderAuth />
         </div>
       </div>
@@ -276,25 +283,53 @@ export function VideoList({
       {/* 動画一覧表示 */}
       {activeTab === 'all' && (
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
-          <div className="flex justify-end items-center gap-2">
-            {selectedVideoIds.length > 0 && (
+          
+          {/* 🔍 検索バー ＆ 操作ボタンエリア */}
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+            {/* 検索インプット */}
+            <div className="relative flex-1 max-w-md">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 text-sm pointer-events-none">
+                🔍
+              </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="タイトルでキーワード検索（例: ドッキリ）"
+                className="w-full pl-9 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 text-xs font-bold"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* 一括操作ボタン */}
+            <div className="flex justify-end items-center gap-2">
+              {selectedVideoIds.length > 0 && (
+                <button
+                  onClick={handleBatchAddToMyList}
+                  className="bg-red-600 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-red-700 transition"
+                >
+                  選択中 ({selectedVideoIds.length}) をマイリストに追加
+                </button>
+              )}
               <button
-                onClick={handleBatchAddToMyList}
-                className="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-red-700 transition"
+                onClick={handleToggleSelectAll}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-2 rounded-xl font-bold transition whitespace-nowrap"
               >
-                選択中 ({selectedVideoIds.length}) をマイリストに追加
+                {selectedVideoIds.length === filteredVideos.length && filteredVideos.length > 0
+                  ? '全解除'
+                  : '表示中を全選択'}
               </button>
-            )}
-            <button
-              onClick={handleToggleSelectAll}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-xl font-bold transition"
-            >
-              {selectedVideoIds.length === initialVideos.length && initialVideos.length > 0
-                ? '全解除'
-                : 'ページ内全選択'}
-            </button>
+            </div>
           </div>
 
+          {/* ページネーション（Part選択） */}
           <div className="space-y-2 pt-2 border-t border-gray-100">
             <p className="text-xs text-gray-400 font-medium">
               ページ選択 (Part 1 ～ Part {totalParts})
@@ -316,58 +351,73 @@ export function VideoList({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {initialVideos.map((video) => {
-              const isSelected = selectedVideoIds.includes(video.id)
-              const thumb =
-                video.thumbnailUrl ||
-                video.thumbnail_url ||
-                `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`
-              const dateStr = video.publishedAt || video.published_at || ''
+          {/* 検索結果の件数表示（検索時のみ） */}
+          {searchQuery && (
+            <p className="text-xs font-bold text-gray-500">
+              「{searchQuery}」の検索結果: <span className="text-red-600">{filteredVideos.length}</span> 件
+            </p>
+          )}
 
-              return (
-                <div
-                  key={video.id}
-                  className={`relative bg-white border rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between transition hover:shadow-md ${
-                    isSelected ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-100'
-                  }`}
-                >
-                  <div className="relative aspect-video">
-                    <button
-                      onClick={() => toggleSelectVideo(video.id)}
-                      className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-lg border-2 transition flex items-center justify-center ${
-                        isSelected
-                          ? 'bg-red-600 border-red-600 text-white'
-                          : 'border-white/80 bg-black/30 hover:bg-black/50'
-                      }`}
-                    >
-                      {isSelected && <span className="text-xs font-bold">✓</span>}
-                    </button>
-                    <img src={thumb} alt={video.title} className="w-full h-full object-cover" />
-                  </div>
+          {/* 該当動画がない場合 */}
+          {filteredVideos.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 text-xs bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+              キーワード「{searchQuery}」に一致する動画は見つかりませんでした。
+            </div>
+          ) : (
+            /* 動画カードグリッド */
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredVideos.map((video) => {
+                const isSelected = selectedVideoIds.includes(video.id)
+                const thumb =
+                  video.thumbnailUrl ||
+                  video.thumbnail_url ||
+                  `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`
+                const dateStr = video.publishedAt || video.published_at || ''
 
-                  <div className="p-3 space-y-3 flex-1 flex flex-col justify-between">
-                    <div>
-                      <p className="text-xs font-bold text-gray-800 line-clamp-2 leading-snug">
-                        {video.title}
-                      </p>
-                      {dateStr && (
-                        <p className="text-[10px] text-gray-400 mt-1">
-                          {dateStr.split('T')[0]}
-                        </p>
-                      )}
+                return (
+                  <div
+                    key={video.id}
+                    className={`relative bg-white border rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between transition hover:shadow-md ${
+                      isSelected ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-100'
+                    }`}
+                  >
+                    <div className="relative aspect-video">
+                      <button
+                        onClick={() => toggleSelectVideo(video.id)}
+                        className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-lg border-2 transition flex items-center justify-center ${
+                          isSelected
+                            ? 'bg-red-600 border-red-600 text-white'
+                            : 'border-white/80 bg-black/30 hover:bg-black/50'
+                        }`}
+                      >
+                        {isSelected && <span className="text-xs font-bold">✓</span>}
+                      </button>
+                      <img src={thumb} alt={video.title} className="w-full h-full object-cover" />
                     </div>
-                    <button
-                      onClick={() => handleSingleAddToMyList(video)}
-                      className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold border border-gray-100 transition"
-                    >
-                      + マイリストに追加
-                    </button>
+
+                    <div className="p-3 space-y-3 flex-1 flex flex-col justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-gray-800 line-clamp-2 leading-snug">
+                          {video.title}
+                        </p>
+                        {dateStr && (
+                          <p className="text-[10px] text-gray-400 mt-1">
+                            {dateStr.split('T')[0]}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleSingleAddToMyList(video)}
+                        className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold border border-gray-100 transition"
+                      >
+                        + マイリストに追加
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
