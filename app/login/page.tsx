@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 
 function getErrorMessage(error: any): string {
   if (!error) return 'エラーが発生しました'
@@ -45,6 +44,9 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
       }
+      
+      // ログイン成功時はゲストフラグをクリアして移動
+      document.cookie = 'guest_mode=; path=/; max-age=0'
       router.push('/')
       router.refresh()
     } catch (error: any) {
@@ -52,6 +54,14 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // ゲスト利用ボタンを押した時の処理
+  const handleGuestLogin = () => {
+    // ゲストフラグ（7日間有効）を保存してトップへ
+    document.cookie = 'guest_mode=true; path=/; max-age=604800'
+    router.push('/')
+    router.refresh()
   }
 
   return (
@@ -117,7 +127,7 @@ export default function LoginPage() {
               setIsSignUp(!isSignUp)
               setMessage('')
             }}
-            className="text-xs font-bold text-gray-500 hover:text-gray-900 underline block w-full"
+            className="text-xs font-bold text-gray-500 hover:text-gray-900 underline block w-full cursor-pointer"
           >
             {isSignUp
               ? 'すでにアカウントをお持ちの方はこちら（ログイン）'
@@ -129,13 +139,13 @@ export default function LoginPage() {
             <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-gray-400">または</span></div>
           </div>
 
-          {/* ① ゲスト利用ボタン */}
-          <Link
-            href="/"
-            className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition block text-center"
+          <button
+            type="button"
+            onClick={handleGuestLogin}
+            className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition block text-center cursor-pointer"
           >
             ログインせずに使う（ゲスト利用）
-          </Link>
+          </button>
         </div>
       </div>
     </div>

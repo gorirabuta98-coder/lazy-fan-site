@@ -34,8 +34,23 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const pathname = request.nextUrl.pathname
+  const isGuest = request.cookies.get('guest_mode')?.value === 'true'
 
-  // ログイン済みユーザーが /login にアクセスした場合はトップへ転送
+  // ログイン不要・アクセス許可ページ
+  const isPublicPage =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/playlist/') ||
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/_next')
+
+  // 未ログイン かつ ゲストボタンも押していない場合は /login に飛ばす
+  if (!user && !isGuest && !isPublicPage) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // ログイン済みユーザーが /login にアクセスした場合はトップへ飛ばす
   if (user && pathname.startsWith('/login')) {
     const url = request.nextUrl.clone()
     url.pathname = '/'

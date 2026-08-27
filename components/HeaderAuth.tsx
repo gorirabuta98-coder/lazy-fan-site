@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 export default function HeaderAuth() {
@@ -27,20 +26,29 @@ export default function HeaderAuth() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
+    document.cookie = 'guest_mode=; path=/; max-age=0'
+    router.push('/login')
+    router.refresh()
+  }
+
+  const handleBackToLogin = () => {
+    // ゲストフラグを解除してログイン画面へ
+    document.cookie = 'guest_mode=; path=/; max-age=0'
+    router.push('/login')
     router.refresh()
   }
 
   if (loading) return null
 
-  // ③ ゲスト状態（未ログイン）の場合：ログイン画面への誘導ボタンを表示
+  // 未ログイン（ゲスト状態）の場合：ログイン画面へ戻るボタンを表示
   if (!user) {
     return (
-      <Link
-        href="/login"
-        className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1 shadow-sm"
+      <button
+        onClick={handleBackToLogin}
+        className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1 shadow-sm cursor-pointer"
       >
         <span>🔑 ログイン画面に戻る</span>
-      </Link>
+      </button>
     )
   }
 
@@ -52,7 +60,7 @@ export default function HeaderAuth() {
       </span>
       <button
         onClick={handleLogout}
-        className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs px-3 py-2 rounded-xl transition"
+        className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer"
       >
         ログアウト
       </button>
