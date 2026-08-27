@@ -31,26 +31,55 @@ export function VideoList({
   const router = useRouter()
   const [playlists, setPlaylists] = useState<PlaylistWithItems[]>(initialPlaylists)
   const [activeTab, setActiveTab] = useState<'all' | 'mylist'>('all')
-  const [selectedVideoForModal, setSelectedVideoForModal] = useState<Video | null>(null)
+  const [selectedVideosForModal, setSelectedVideosForModal] = useState<Video[]>([])
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([])
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
 
+  // 新規マイリスト作成用ステート
+  const [newPlaylistTitle, setNewPlaylistTitle] = useState('')
+  const [isCreatingList, setIsCreatingList] = useState(false)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+
   const totalParts = Math.ceil(totalCount / pageSize)
+
+  // マイリスト新規作成処理
+  const handleCreatePlaylist = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPlaylistTitle.trim()) return
+
+    setIsCreatingList(true)
+    try {
+      const res = await fetch('/api/playlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newPlaylistTitle.trim() }),
+      })
+
+      if (res.ok) {
+        const fetchRes = await fetch('/api/playlists')
+        if (fetchRes.ok) {
+          const updated = await fetchRes.json()
+          setPlaylists(updated)
+        }
+        setNewPlaylistTitle('')
+        setShowCreateForm(false)
+        alert('新しいマイリストを作成しました！')
+      }
+    } catch (error) {
+      console.error('作成失敗:', error)
+      alert('マイリストの作成に失敗しました。')
+    } finally {
+      setIsCreatingList(false)
+    }
+  }
 
   // YouTube同期処理
   const handleSync = async () => {
     setIsSyncing(true)
     try {
-      // 同期APIを呼び出し（※APIのパスに合わせて調整してください）
       const res = await fetch('/api/sync', { method: 'POST' })
-      
-      if (!res.ok) {
-        // POSTで失敗した場合はGETで再試行
-        await fetch('/api/sync')
-      }
-
-      // 最新状態を取得するためにページを更新
+      if (!res.ok) await fetch('/api/sync')
       router.refresh()
       alert('YouTubeとの同期が完了しました！')
     } catch (error) {
@@ -76,17 +105,21 @@ export function VideoList({
     )
   }
 
+  // 単体追加
+  const handleSingleAddToMyList = (video: Video) => {
+    setSelectedVideosForModal([video])
+  }
+
+  // 複数一括追加
   const handleBatchAddToMyList = () => {
     if (selectedVideoIds.length === 0) return
-    const firstSelected = initialVideos.find((v) => v.id === selectedVideoIds[0])
-    if (firstSelected) {
-      setSelectedVideoForModal(firstSelected)
-    }
+    const targets = initialVideos.filter((v) => selectedVideoIds.includes(v.id))
+    setSelectedVideosForModal(targets)
   }
 
   return (
     <div className="space-y-6">
-      {/* 上部エリア（タイトル・件数 ＆ 右上：YouTube同期 ＋ タブ切替） */}
+      {/* 上部ヘッダー */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-2 border-b border-gray-100 gap-4">
         <div className="flex items-center gap-3">
           {activeTab === 'all' && (
@@ -101,9 +134,7 @@ export function VideoList({
           )}
         </div>
 
-        {/* 右上操作エリア */}
         <div className="flex items-center gap-3">
-          {/* 同期ボタン（クリック可能・ローディング付き） */}
           <button
             onClick={handleSync}
             disabled={isSyncing}
@@ -153,7 +184,7 @@ export function VideoList({
                 onClick={handleBatchAddToMyList}
                 className="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-red-700 transition"
               >
-                選択中 ({selectedVideoIds.length}) を追加
+                選択中 ({selectedVideoIds.length}) をマイリストに追加
               </button>
             )}
             <button
@@ -229,7 +260,7 @@ export function VideoList({
                       )}
                     </div>
                     <button
-                      onClick={() => setSelectedVideoForModal(video)}
+                      onClick={() => handleSingleAddToMyList(video)}
                       className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold border border-gray-100 transition"
                     >
                       + マイリストに追加
@@ -245,11 +276,41 @@ export function VideoList({
       {/* マイリスト一覧表示 */}
       {activeTab === 'mylist' && (
         <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900">マイリスト一覧</h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold text-gray-900">マイリスト一覧</h2>
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-1.5"
+            >
+              ➕ 新規マイリスト作成
+            </button>
+          </div>
+
+          {/* 新規マイリスト作成フォーム */}
+          {showCreateForm && (
+            <form onSubmit={handleCreatePlaylist} className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex gap-3">
+              <input
+                type="text"
+                placeholder="例: 爆笑ドッキリ神回まとめ"
+                value={newPlaylistTitle}
+                onChange={(e) => setNewPlaylistTitle(e.target.value)}
+                className="flex-1 px-4 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                autoFocus
+              />
+              <button
+                type="submit"
+                disabled={isCreatingList || !newPlaylistTitle.trim()}
+                className="bg-slate-900 hover:bg-slate-800 disabled:bg-gray-300 text-white text-xs font-bold px-4 py-2 rounded-xl transition"
+              >
+                {isCreatingList ? '作成中...' : '作成'}
+              </button>
+            </form>
+          )}
 
           {playlists.length === 0 ? (
-            <div className="bg-white p-12 rounded-3xl text-center border border-gray-100 text-gray-400 text-sm">
-              マイリストがありません。「動画一覧」から動画を追加してください。
+            <div className="bg-white p-12 rounded-3xl text-center border border-gray-100 text-gray-400 text-sm space-y-3">
+              <p>マイリストがありません。</p>
+              <p className="text-xs text-gray-500">「➕ 新規マイリスト作成」ボタンから箱を作成してください。</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -266,10 +327,6 @@ export function VideoList({
                       <div className="flex items-center gap-2">
                         <span className="text-amber-500 text-xl">📁</span>
                         <h3 className="font-bold text-base text-gray-800">{pl.title}</h3>
-                      </div>
-                      <div className="flex items-center gap-2 text-gray-400 text-xs">
-                        <button className="hover:text-amber-600 transition">✏️</button>
-                        <button className="hover:text-red-600 transition">🗑️</button>
                       </div>
                     </div>
 
@@ -336,20 +393,14 @@ export function VideoList({
         </div>
       )}
 
-      {selectedVideoForModal && (
+      {selectedVideosForModal.length > 0 && (
         <AddToListModal
-          videoId={selectedVideoForModal.id}
-          videoTitle={selectedVideoForModal.title}
-          thumbnailUrl={
-            selectedVideoForModal.thumbnailUrl ||
-            selectedVideoForModal.thumbnail_url ||
-            `https://i.ytimg.com/vi/${selectedVideoForModal.id}/hqdefault.jpg`
-          }
+          selectedVideos={selectedVideosForModal}
+          playlists={playlists}
           onClose={() => {
-            setSelectedVideoForModal(null)
+            setSelectedVideosForModal([])
             setSelectedVideoIds([])
           }}
-          playlists={playlists}
           onPlaylistsUpdated={(updated) => setPlaylists(updated)}
         />
       )}

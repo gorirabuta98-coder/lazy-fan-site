@@ -1,309 +1,148 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { createPlaylist, addToPlaylist, getPlaylistsWithVideos } from '@/app/actions/playlists'
-import { getDeviceId } from '@/lib/deviceId'
+import { useState } from 'react'
+
+export interface PlaylistItem {
+  id: string
+  video_id: string
+  video_title?: string
+  title?: string
+  thumbnail_url?: string
+  thumbnailUrl?: string
+}
 
 export interface PlaylistWithItems {
   id: string
   title: string
-  created_at?: string
-  playlist_items?: any[]
+  playlist_items?: PlaylistItem[]
+}
+
+interface Video {
+  id: string
+  title: string
+  thumbnailUrl?: string
+  thumbnail_url?: string
 }
 
 interface AddToListModalProps {
-  videoId: string
-  videoTitle: string
-  thumbnailUrl: string
+  selectedVideos: Video[]
+  playlists: PlaylistWithItems[]
   onClose: () => void
-  onPlaylistsUpdated?: (playlists: PlaylistWithItems[]) => void
-  playlists?: PlaylistWithItems[]
-}
-
-// 英語エラーメッセージを日本語に変換する関数
-const formatErrorMessage = (errorMsg?: string): string => {
-  if (!errorMsg) return '処理に失敗しました。'
-  if (errorMsg.includes('row-level security')) {
-    return 'データベースの書き込み権限エラーです。SupabaseのSQL EditorでRLSを無効化してください。'
-  }
-  if (errorMsg.includes('duplicate key')) {
-    return 'すでにこのリストに追加されています。'
-  }
-  return 'エラーが発生しました。もう一度お試しください。'
+  onPlaylistsUpdated: (updated: PlaylistWithItems[]) => void
 }
 
 export default function AddToListModal({
-  videoId,
-  videoTitle,
-  thumbnailUrl,
+  selectedVideos,
+  playlists,
   onClose,
   onPlaylistsUpdated,
-  playlists = [],
 }: AddToListModalProps) {
-  const [activeTab, setActiveTab] = useState<'existing' | 'new'>('existing')
-  const [newPlaylistTitle, setNewPlaylistTitle] = useState<string>('')
-  const [searchQuery, setSearchQuery] = useState<string>('')
-  const [isProcessing, setIsProcessing] = useState<boolean>(false)
-  const [processingId, setProcessingId] = useState<string | null>(null)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string>('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const router = useRouter()
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isProcessing) {
-        handleClose()
-      }
+  const handleAdd = async () => {
+    if (!selectedPlaylistId) {
+      alert('追加先のマイリストを選択してください。')
+      return
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isProcessing])
 
-  const handleClose = () => {
-    if (isProcessing) return
-    setNewPlaylistTitle('')
-    setSearchQuery('')
-    setMessage(null)
-    setProcessingId(null)
-    setActiveTab('existing')
-    onClose()
-  }
-
-  // 新規マイリスト作成 ＆ 動画追加
-  const handleCreateAndAdd = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newPlaylistTitle.trim() || isProcessing) return
-
-    setIsProcessing(true)
-    setMessage(null)
-
+    setIsSubmitting(true)
     try {
-      const deviceId = getDeviceId()
-      const res = await createPlaylist(newPlaylistTitle.trim(), deviceId)
-
-      if (res.success && res.playlist?.id) {
-        const addResult = await addToPlaylist(
-          res.playlist.id,
-          videoId,
-          videoTitle,
-          thumbnailUrl,
-          deviceId
-        )
-
-        if (!addResult.success) {
-          setMessage({ type: 'error', text: formatErrorMessage(addResult.error) })
-          setIsProcessing(false)
-          return
-        }
-
-        const updatedPlaylists = await getPlaylistsWithVideos(deviceId)
-        onPlaylistsUpdated?.(updatedPlaylists)
-        alert(`「${newPlaylistTitle}」を作成して追加しました！`)
-        handleClose()
-        router.refresh()
-      } else {
-        setMessage({ type: 'error', text: formatErrorMessage(res.error) })
-      }
-    } catch (error) {
-      console.error('新規追加エラー:', error)
-      setMessage({ type: 'error', text: '予期せぬエラーが発生しました。' })
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  // 既存マイリストへの動画追加
-  const handleAddToExisting = async (playlistId: string, playlistTitle: string) => {
-    if (isProcessing) return
-
-    setIsProcessing(true)
-    setProcessingId(playlistId)
-    setMessage(null)
-
-    try {
-      const deviceId = getDeviceId()
-      const res = await addToPlaylist(
-        playlistId,
-        videoId,
-        videoTitle,
-        thumbnailUrl,
-        deviceId
+      // 選択されたすべての動画を追加
+      const promises = selectedVideos.map((video) =>
+        fetch(`/api/playlists/${selectedPlaylistId}/items`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            videoId: video.id,
+            videoTitle: video.title,
+            thumbnailUrl:
+              video.thumbnailUrl ||
+              video.thumbnail_url ||
+              `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
+          }),
+        })
       )
 
-      if (res.success) {
-        const updatedPlaylists = await getPlaylistsWithVideos(deviceId)
-        onPlaylistsUpdated?.(updatedPlaylists)
-        alert(`「${playlistTitle}」に追加しました！`)
-        handleClose()
-        router.refresh()
-      } else {
-        setMessage({ type: 'error', text: formatErrorMessage(res.error) })
+      await Promise.all(promises)
+
+      // 最新のリスト一覧を再取得
+      const res = await fetch('/api/playlists')
+      if (res.ok) {
+        const updated = await res.json()
+        onPlaylistsUpdated(updated)
       }
+
+      alert(`${selectedVideos.length} 件の動画をマイリストに追加しました！`)
+      onClose()
     } catch (error) {
-      console.error('既存追加エラー:', error)
-      setMessage({ type: 'error', text: '予期せぬエラーが発生しました。' })
+      console.error('追加失敗:', error)
+      alert('マイリストへの追加に失敗しました。')
     } finally {
-      setIsProcessing(false)
-      setProcessingId(null)
+      setIsSubmitting(false)
     }
   }
 
-  const filteredPlaylists = playlists.filter((pl) =>
-    (pl.title || '').toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-opacity"
-      onClick={handleClose}
-    >
-      <div
-        className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 relative space-y-5 animate-in fade-in zoom-in-95 duration-150"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">📁</span>
-            <h3 className="font-extrabold text-gray-900 text-base">マイリストに追加</h3>
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-5 shadow-xl relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 font-bold w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+        >
+          ✕
+        </button>
+
+        <h3 className="text-lg font-bold text-gray-900">📁 マイリストに追加</h3>
+
+        <p className="text-xs text-gray-500">
+          選択中: <span className="font-bold text-red-600">{selectedVideos.length} 件</span> の動画
+        </p>
+
+        {playlists.length === 0 ? (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-2xl text-xs space-y-2">
+            <p className="font-bold">⚠️ マイリストがありません</p>
+            <p>先に「📁 マイリスト」タブから新しいマイリストを作成してください。</p>
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            disabled={isProcessing}
-            className="text-gray-400 hover:text-gray-600 font-bold p-1 rounded-lg transition-colors disabled:opacity-50"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-2xl border border-gray-100">
-          <img
-            src={thumbnailUrl}
-            alt={videoTitle}
-            className="w-16 h-10 object-cover rounded-lg border border-gray-200 shrink-0"
-          />
-          <p className="text-xs font-bold text-gray-800 line-clamp-2 leading-snug">
-            {videoTitle}
-          </p>
-        </div>
-
-        {message && (
-          <div
-            className={`p-3 rounded-xl text-xs font-bold transition-all ${
-              message.type === 'success'
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-red-50 text-red-700 border border-red-200'
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
-
-        <div className="flex bg-gray-100 p-1 rounded-xl">
-          <button
-            type="button"
-            onClick={() => setActiveTab('existing')}
-            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-              activeTab === 'existing'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            既存のリスト ({playlists.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('new')}
-            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-              activeTab === 'new'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            新規作成
-          </button>
-        </div>
-
-        {activeTab === 'existing' && (
+        ) : (
           <div className="space-y-3">
-            {playlists.length > 5 && (
-              <input
-                type="text"
-                placeholder="リスト名を検索..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full text-xs border border-gray-300 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-            )}
-
-            {filteredPlaylists.length > 0 ? (
-              <div className="max-h-52 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
-                {filteredPlaylists.map((pl) => {
-                  const isCurrentProcessing = processingId === pl.id
-                  const isAlreadyAdded = pl.playlist_items?.some(
-                    (item: any) => item.video_id === videoId
-                  )
-
-                  return (
-                    <button
-                      key={pl.id}
-                      type="button"
-                      onClick={() => handleAddToExisting(pl.id, pl.title)}
-                      disabled={isProcessing}
-                      className={`w-full text-left flex items-center justify-between p-3 rounded-xl border transition-all text-xs font-bold ${
-                        isAlreadyAdded
-                          ? 'bg-gray-50 border-gray-200 text-gray-400'
-                          : 'bg-white border-gray-200 hover:border-red-500 hover:bg-red-50/40 text-gray-800'
-                      } disabled:opacity-60`}
-                    >
-                      <span className="truncate">{pl.title}</span>
-                      <span className="text-xs font-bold whitespace-nowrap ml-2 text-red-600">
-                        {isCurrentProcessing
-                          ? '追加中...'
-                          : isAlreadyAdded
-                          ? '追加済み'
-                          : '＋ 追加'}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                <p className="text-xs font-bold text-gray-400">
-                  {searchQuery ? '検索結果がありません' : 'マイリストがまだありません'}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'new' && (
-          <form onSubmit={handleCreateAndAdd} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-700 block">
-                新しいマイリスト名
-              </label>
-              <input
-                type="text"
-                placeholder="例：お気に入り、作業用BGM..."
-                value={newPlaylistTitle}
-                onChange={(e) => setNewPlaylistTitle(e.target.value)}
-                disabled={isProcessing}
-                className="w-full text-xs border border-gray-300 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:bg-gray-100"
-                autoFocus
-              />
+            <label className="block text-xs font-bold text-gray-700">追加先のリストを選択</label>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {playlists.map((pl) => (
+                <label
+                  key={pl.id}
+                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
+                    selectedPlaylistId === pl.id
+                      ? 'border-red-500 bg-red-50/50 text-red-900 font-bold ring-1 ring-red-500'
+                      : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="playlist"
+                      value={pl.id}
+                      checked={selectedPlaylistId === pl.id}
+                      onChange={() => setSelectedPlaylistId(pl.id)}
+                      className="accent-red-600"
+                    />
+                    <span className="text-xs">{pl.title}</span>
+                  </div>
+                  <span className="text-[10px] text-gray-400">
+                    ({pl.playlist_items?.length || 0}件)
+                  </span>
+                </label>
+              ))}
             </div>
 
             <button
-              type="submit"
-              disabled={!newPlaylistTitle.trim() || isProcessing}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs py-3 rounded-xl transition-colors disabled:opacity-40 shadow-sm"
+              onClick={handleAdd}
+              disabled={isSubmitting || !selectedPlaylistId}
+              className="w-full py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white font-bold rounded-xl text-xs transition mt-4"
             >
-              {isProcessing ? '作成して追加中...' : '作成して追加する'}
+              {isSubmitting ? '追加中...' : 'このリストに追加する'}
             </button>
-          </form>
+          </div>
         )}
       </div>
     </div>
