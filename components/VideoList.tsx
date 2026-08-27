@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AddToListModal, { PlaylistWithItems } from '@/components/AddToListModal'
+import ShareModal from '@/components/ShareModal'
 
 interface Video {
   id: string
@@ -36,6 +37,9 @@ export function VideoList({
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
 
+  // 共有モーダル用
+  const [sharingPlaylist, setSharingPlaylist] = useState<{ id: string; title: string } | null>(null)
+
   // 新規マイリスト作成用
   const [newPlaylistTitle, setNewPlaylistTitle] = useState('')
   const [isCreatingList, setIsCreatingList] = useState(false)
@@ -59,7 +63,6 @@ export function VideoList({
     }
   }
 
-  // 初期ロード時 & タブ切り替え時にマイリストを自動取得
   useEffect(() => {
     reloadPlaylists()
   }, [])
@@ -452,6 +455,13 @@ export function VideoList({
                       {!isEditing && (
                         <div className="flex items-center gap-1">
                           <button
+                            onClick={() => setSharingPlaylist({ id: pl.id, title: pl.title })}
+                            className="p-1.5 text-xs text-blue-500 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition flex items-center gap-1 font-bold"
+                            title="共有・URLコピー"
+                          >
+                            🔗 共有
+                          </button>
+                          <button
                             onClick={() => {
                               setEditingPlaylistId(pl.id)
                               setEditingTitle(pl.title)
@@ -542,6 +552,7 @@ export function VideoList({
         </div>
       )}
 
+      {/* マイリスト追加モーダル */}
       {selectedVideosForModal.length > 0 && (
         <AddToListModal
           selectedVideos={selectedVideosForModal}
@@ -551,6 +562,14 @@ export function VideoList({
             setSelectedVideoIds([])
           }}
           onPlaylistsUpdated={(updated) => setPlaylists(updated)}
+        />
+      )}
+
+      {/* 共有モーダル */}
+      {sharingPlaylist && (
+        <ShareModal
+          playlist={sharingPlaylist}
+          onClose={() => setSharingPlaylist(null)}
         />
       )}
     </div>

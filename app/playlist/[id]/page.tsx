@@ -1,120 +1,121 @@
-import { createClient } from '@supabase/supabase-js'
-import { Metadata } from 'next'
+import { createClient } from '@/lib/supabase/server'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { Metadata } from 'next'
 
-// Supabaseクライアントの初期化
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-interface PageProps {
+interface Props {
   params: Promise<{ id: string }>
 }
 
-// X（旧Twitter）やGoogle用のメタデータ（SEO対策）
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+// X（Twitter）カードなどのOGP（サムネイル・タイトル表示）設定
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
+  const supabase = await createClient()
   const { data: playlist } = await supabase
     .from('playlists')
-    .select('title, description')
+    .select('title')
     .eq('id', id)
     .single()
 
-  if (!playlist) {
-    return {
-      title: 'マイリストが見つかりません | レイクレファンツール',
-    }
-  }
+  if (!playlist) return { title: 'マイリストが見つかりません' }
 
   return {
-    title: `${playlist.title} | レイクレ動画マイリスト`,
-    description: playlist.description || 'レイクレ（Lazy Lie Crazy）のおすすめ動画マイリストです。',
+    title: `${playlist.title} | マイリスト`,
+    description: `ファンが作成した「${playlist.title}」の動画マイリストです。`,
     openGraph: {
-      title: `${playlist.title} | レイクレ動画マイリスト`,
-      description: playlist.description || 'レイクレのおすすめ動画まとめ',
+      title: playlist.title,
+      description: `ファンが作成した「${playlist.title}」の動画マイリストです。`,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: playlist.title,
+      description: `ファンが作成した「${playlist.title}」の動画マイリストです。`,
     },
   }
 }
 
-export default async function PlaylistDetailPage({ params }: PageProps) {
+export default async function PlaylistDetailPage({ params }: Props) {
   const { id } = await params
+  const supabase = await createClient()
 
-  // DBからマイリスト情報を取得
+  // マイリストと関連する動画一覧を取得
   const { data: playlist, error } = await supabase
     .from('playlists')
-    .select('*')
+    .select('*, playlist_items(*)')
     .eq('id', id)
     .single()
 
   if (error || !playlist) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">
-          マイリストが見つかりませんでした
-        </h1>
-        <p className="text-gray-600 mb-8">
-          削除されたか、URLが間違っている可能性があります。
-        </p>
-        <Link
-          href="/"
-          className="inline-block bg-red-600 text-white font-bold px-6 py-3 rounded-lg hover:bg-red-700 transition"
-        >
-          トップページへ戻る
-        </Link>
-      </div>
-    )
+    notFound()
   }
 
+  const items = playlist.playlist_items || []
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-      {/* マイリストのヘッダー情報 */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-3">
-        <div className="inline-block bg-red-100 text-red-600 text-xs font-bold px-3 py-1 rounded-full">
-          公開マイリスト
+    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* ヘッダー・戻るボタン */}
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            className="text-xs font-bold text-gray-500 hover:text-gray-900 bg-white border border-gray-200 px-4 py-2 rounded-xl transition shadow-sm"
+          >
+            ← トップへ戻る
+          </Link>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-          {playlist.title}
-        </h1>
-        {playlist.description && (
-          <p className="text-gray-600 text-sm sm:text-base whitespace-pre-wrap">
-            {playlist.description}
-          </p>
+
+        {/* マイリストタイトル表示 */}
+        <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-100 space-y-2">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">📁</span>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">
+              {playlist.title}
+            </h1>
+          </div>
+          <p className="text-xs text-gray-400 font-medium">全 {items.length} 件の動画</p>
+        </div>
+
+        {/* 動画一覧 */}
+        {items.length === 0 ? (
+          <div className="bg-white p-12 rounded-3xl text-center border border-gray-100 text-gray-400 text-sm">
+            このマイリストにはまだ動画が追加されていません。
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {items.map((item: any) => {
+              const videoId = item.video_id
+              const title = item.title || item.video_title || '動画'
+              const thumb =
+                item.thumbnail_url ||
+                item.thumbnailUrl ||
+                `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+              const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`
+
+              return (
+                <a
+                  key={item.id || videoId}
+                  href={youtubeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between"
+                >
+                  <div className="aspect-video relative overflow-hidden bg-gray-100">
+                    <img
+                      src={thumb}
+                      alt={title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                    />
+                  </div>
+                  <div className="p-3">
+                    <p className="text-xs font-bold text-gray-800 line-clamp-2 leading-snug group-hover:text-red-600 transition">
+                      {title}
+                    </p>
+                  </div>
+                </a>
+              )
+            })}
+          </div>
         )}
-        <div className="text-xs text-gray-400 pt-2 border-t">
-          登録動画数: {playlist.video_ids.length}件
-        </div>
-      </div>
-
-      {/* 動画一覧・プレイヤー表示エリア */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-bold text-gray-800">収録動画</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {playlist.video_ids.map((videoId: string) => (
-            <div
-              key={videoId}
-              className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-100"
-            >
-              <div className="aspect-video w-full">
-                <iframe
-                  src={`https://www.youtube.com/embed/${videoId}`}
-                  title="YouTube video player"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="w-full h-full border-0"
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="text-center pt-8">
-        <Link
-          href="/"
-          className="inline-block bg-gray-800 text-white font-bold px-6 py-3 rounded-lg hover:bg-gray-900 transition"
-        >
-          自分もマイリストを作ってみる
-        </Link>
       </div>
     </div>
   )
