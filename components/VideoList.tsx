@@ -61,7 +61,7 @@ export function VideoList({
 
   return (
     <div className="space-y-6">
-      {/* 上部エリア（件数表示 ＆ 右上：YouTube同期 + タブ） */}
+      {/* 上部エリア（タイトル・件数 ＆ 右上：YouTube同期 ＋ タブ切替） */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-2 border-b border-gray-100 gap-4">
         <div className="flex items-center gap-3">
           {activeTab === 'all' && (
@@ -76,7 +76,7 @@ export function VideoList({
           )}
         </div>
 
-        {/* 右上操作エリア（YouTube同期 ＋ タブ切替） */}
+        {/* 右上操作エリア */}
         <div className="flex items-center gap-3">
           <button className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition shadow-sm">
             YouTube同期
@@ -110,7 +110,6 @@ export function VideoList({
       {/* 動画一覧表示 */}
       {activeTab === 'all' && (
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
-          {/* 一括操作エリア */}
           <div className="flex justify-end items-center gap-2">
             {selectedVideoIds.length > 0 && (
               <button
@@ -130,7 +129,6 @@ export function VideoList({
             </button>
           </div>
 
-          {/* Part選択エリア */}
           <div className="space-y-2 pt-2 border-t border-gray-100">
             <p className="text-xs text-gray-400 font-medium">
               ページ選択 (Part 1 ～ Part {totalParts})
@@ -152,7 +150,6 @@ export function VideoList({
             </div>
           </div>
 
-          {/* 動画カードグリッド */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {initialVideos.map((video) => {
               const isSelected = selectedVideoIds.includes(video.id)
