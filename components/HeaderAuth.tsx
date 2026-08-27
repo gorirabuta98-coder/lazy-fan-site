@@ -24,6 +24,14 @@ export default function HeaderAuth() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // ゲスト状態からログイン画面に戻る
+  const handleBackToLogin = () => {
+    document.cookie = 'guest_mode=; path=/; max-age=0'
+    router.push('/login')
+    router.refresh()
+  }
+
+  // ログアウト
   const handleLogout = async () => {
     await supabase.auth.signOut()
     document.cookie = 'guest_mode=; path=/; max-age=0'
@@ -31,39 +39,27 @@ export default function HeaderAuth() {
     router.refresh()
   }
 
-  const handleBackToLogin = () => {
-    // ゲストフラグを解除してログイン画面へ
-    document.cookie = 'guest_mode=; path=/; max-age=0'
-    router.push('/login')
-    router.refresh()
-  }
-
   if (loading) return null
 
-  // 未ログイン（ゲスト状態）の場合：ログイン画面へ戻るボタンを表示
+  // 未ログイン（ゲスト時）
   if (!user) {
     return (
       <button
         onClick={handleBackToLogin}
-        className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition flex items-center gap-1 shadow-sm cursor-pointer"
+        className="px-4 py-2 bg-gray-800 hover:bg-black text-white text-xs font-bold rounded-full transition flex items-center gap-1 cursor-pointer"
       >
-        <span>🔑 ログイン画面に戻る</span>
+        🔑 ログイン
       </button>
     )
   }
 
-  // ログイン済みの場合
+  // ログイン済み時
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-xs text-gray-600 font-medium hidden sm:inline">
-        {user.email}
-      </span>
-      <button
-        onClick={handleLogout}
-        className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs px-3 py-2 rounded-xl transition cursor-pointer"
-      >
-        ログアウト
-      </button>
-    </div>
+    <button
+      onClick={handleLogout}
+      className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold rounded-full transition cursor-pointer"
+    >
+      ログアウト
+    </button>
   )
 }
