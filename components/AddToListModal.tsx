@@ -37,43 +37,54 @@ export default function AddToListModal({
   onClose,
   onPlaylistsUpdated,
 }: AddToListModalProps) {
-  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string>('')
+  const [selectedPlaylistIds, setSelectedPlaylistIds] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const toggleSelectPlaylist = (id: string) => {
+    setSelectedPlaylistIds((prev) =>
+      prev.includes(id) ? prev.filter((pId) => pId !== id) : [...prev, id]
+    )
+  }
+
   const handleAdd = async () => {
-    if (!selectedPlaylistId) {
-      alert('追加先のマイリストを選択してください。')
+    if (selectedPlaylistIds.length === 0) {
+      alert('追加先のマイリストを1つ以上選択してください。')
       return
     }
 
     setIsSubmitting(true)
     try {
-      // 選択されたすべての動画を追加
-      const promises = selectedVideos.map((video) =>
-        fetch(`/api/playlists/${selectedPlaylistId}/items`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            videoId: video.id,
-            videoTitle: video.title,
-            thumbnailUrl:
-              video.thumbnailUrl ||
-              video.thumbnail_url ||
-              `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
-          }),
-        })
-      )
+      const promises: Promise<Response>[] = []
+
+      // 選択したすべてのマイリスト × 選択したすべての動画
+      for (const playlistId of selectedPlaylistIds) {
+        for (const video of selectedVideos) {
+          promises.push(
+            fetch(`/api/playlists/${playlistId}/items`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                videoId: video.id,
+                videoTitle: video.title,
+                thumbnailUrl:
+                  video.thumbnailUrl ||
+                  video.thumbnail_url ||
+                  `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
+              }),
+            })
+          )
+        }
+      }
 
       await Promise.all(promises)
 
-      // 最新のリスト一覧を再取得
       const res = await fetch('/api/playlists')
       if (res.ok) {
         const updated = await res.json()
         onPlaylistsUpdated(updated)
       }
 
-      alert(`${selectedVideos.length} 件の動画をマイリストに追加しました！`)
+      alert(`${selectedVideos.length}件の動画を ${selectedPlaylistIds.length}個のリストに追加しました！`)
       onClose()
     } catch (error) {
       console.error('追加失敗:', error)
@@ -106,41 +117,44 @@ export default function AddToListModal({
           </div>
         ) : (
           <div className="space-y-3">
-            <label className="block text-xs font-bold text-gray-700">追加先のリストを選択</label>
+            <label className="block text-xs font-bold text-gray-700">
+              追加先のリストを選択（複数可）
+            </label>
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {playlists.map((pl) => (
-                <label
-                  key={pl.id}
-                  className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-                    selectedPlaylistId === pl.id
-                      ? 'border-red-500 bg-red-50/50 text-red-900 font-bold ring-1 ring-red-500'
-                      : 'border-gray-200 hover:bg-gray-50 text-gray-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="playlist"
-                      value={pl.id}
-                      checked={selectedPlaylistId === pl.id}
-                      onChange={() => setSelectedPlaylistId(pl.id)}
-                      className="accent-red-600"
-                    />
-                    <span className="text-xs">{pl.title}</span>
-                  </div>
-                  <span className="text-[10px] text-gray-400">
-                    ({pl.playlist_items?.length || 0}件)
-                  </span>
-                </label>
-              ))}
+              {playlists.map((pl) => {
+                const isChecked = selectedPlaylistIds.includes(pl.id)
+                return (
+                  <label
+                    key={pl.id}
+                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
+                      isChecked
+                        ? 'border-red-500 bg-red-50/50 text-red-900 font-bold ring-1 ring-red-500'
+                        : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleSelectPlaylist(pl.id)}
+                        className="accent-red-600 w-4 h-4 rounded"
+                      />
+                      <span className="text-xs">{pl.title}</span>
+                    </div>
+                    <span className="text-[10px] text-gray-400">
+                      ({pl.playlist_items?.length || 0}件)
+                    </span>
+                  </label>
+                )
+              })}
             </div>
 
             <button
               onClick={handleAdd}
-              disabled={isSubmitting || !selectedPlaylistId}
+              disabled={isSubmitting || selectedPlaylistIds.length === 0}
               className="w-full py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white font-bold rounded-xl text-xs transition mt-4"
             >
-              {isSubmitting ? '追加中...' : 'このリストに追加する'}
+              {isSubmitting ? '追加中...' : '選択したリストに追加する'}
             </button>
           </div>
         )}

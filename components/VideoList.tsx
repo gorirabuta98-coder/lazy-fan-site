@@ -36,14 +36,26 @@ export function VideoList({
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
 
-  // 新規マイリスト作成用ステート
+  // 新規マイリスト作成用
   const [newPlaylistTitle, setNewPlaylistTitle] = useState('')
   const [isCreatingList, setIsCreatingList] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
 
+  // マイリスト編集用
+  const [editingPlaylistId, setEditingPlaylistId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState('')
+
   const totalParts = Math.ceil(totalCount / pageSize)
 
-  // マイリスト新規作成処理
+  const reloadPlaylists = async () => {
+    const res = await fetch('/api/playlists')
+    if (res.ok) {
+      const updated = await res.json()
+      setPlaylists(updated)
+    }
+  }
+
+  // マイリスト新規作成
   const handleCreatePlaylist = async () => {
     if (!newPlaylistTitle.trim()) {
       alert('マイリストのタイトルを入力してください。')
@@ -59,11 +71,7 @@ export function VideoList({
       })
 
       if (res.ok) {
-        const fetchRes = await fetch('/api/playlists')
-        if (fetchRes.ok) {
-          const updated = await fetchRes.json()
-          setPlaylists(updated)
-        }
+        await reloadPlaylists()
         setNewPlaylistTitle('')
         setShowCreateForm(false)
         alert('新しいマイリストを作成しました！')
@@ -75,6 +83,72 @@ export function VideoList({
       alert('エラーが発生しました。')
     } finally {
       setIsCreatingList(false)
+    }
+  }
+
+  // マイリスト名前変更
+  const handleRenamePlaylist = async (playlistId: string) => {
+    if (!editingTitle.trim()) return
+
+    try {
+      const res = await fetch(`/api/playlists/${playlistId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editingTitle.trim() }),
+      })
+
+      if (res.ok) {
+        await reloadPlaylists()
+        setEditingPlaylistId(null)
+        setEditingTitle('')
+      } else {
+        alert('名前の変更に失敗しました。')
+      }
+    } catch (error) {
+      console.error('名前変更失敗:', error)
+      alert('エラーが発生しました。')
+    }
+  }
+
+  // マイリスト削除
+  const handleDeletePlaylist = async (playlistId: string, title: string) => {
+    if (!confirm(`マイリスト「${title}」を削除してもよろしいですか？`)) return
+
+    try {
+      const res = await fetch(`/api/playlists/${playlistId}`, {
+        method: 'DELETE',
+      })
+
+      if (res.ok) {
+        await reloadPlaylists()
+      } else {
+        alert('マイリストの削除に失敗しました。')
+      }
+    } catch (error) {
+      console.error('削除失敗:', error)
+      alert('エラーが発生しました。')
+    }
+  }
+
+  // マイリストから特定動画を削除
+  const handleDeleteItem = async (playlistId: string, itemId?: string, videoId?: string) => {
+    if (!confirm('この動画をマイリストから削除しますか？')) return
+
+    try {
+      const res = await fetch(`/api/playlists/${playlistId}/items`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, videoId }),
+      })
+
+      if (res.ok) {
+        await reloadPlaylists()
+      } else {
+        alert('動画の削除に失敗しました。')
+      }
+    } catch (error) {
+      console.error('動画削除失敗:', error)
+      alert('エラーが発生しました。')
     }
   }
 
@@ -323,6 +397,7 @@ export function VideoList({
               {playlists.map((pl) => {
                 const items = pl.playlist_items || []
                 const isExpanded = expandedPlaylistId === pl.id
+                const isEditing = editingPlaylistId === pl.id
 
                 return (
                   <div
@@ -330,15 +405,61 @@ export function VideoList({
                     className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-amber-500 text-xl">📁</span>
-                        <h3 className="font-bold text-base text-gray-800">{pl.title}</h3>
-                      </div>
+                      {isEditing ? (
+                        <div className="flex items-center gap-2 flex-1 mr-2">
+                          <input
+                            type="text"
+                            value={editingTitle}
+                            onChange={(e) => setEditingTitle(e.target.value)}
+                            className="flex-1 px-3 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleRenamePlaylist(pl.id)}
+                            className="bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg font-bold"
+                          >
+                            保存
+                          </button>
+                          <button
+                            onClick={() => setEditingPlaylistId(null)}
+                            className="bg-gray-100 text-gray-600 text-xs px-2 py-1.5 rounded-lg"
+                          >
+                            キャンセル
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-500 text-xl">📁</span>
+                          <h3 className="font-bold text-base text-gray-800">{pl.title}</h3>
+                        </div>
+                      )}
+
+                      {!isEditing && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingPlaylistId(pl.id)
+                              setEditingTitle(pl.title)
+                            }}
+                            className="p-1.5 text-xs text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition"
+                            title="名前変更"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => handleDeletePlaylist(pl.id, pl.title)}
+                            className="p-1.5 text-xs text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition"
+                            title="リスト削除"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <p className="text-xs text-gray-400">動画 {items.length} 件</p>
 
-                    {items.length > 0 && (
+                    {items.length > 0 && !isExpanded && (
                       <div className="flex gap-2 overflow-x-auto pb-2">
                         {items.slice(0, 4).map((item: any, idx) => (
                           <div
@@ -371,8 +492,15 @@ export function VideoList({
                         {items.map((item: any, idx) => (
                           <div
                             key={idx}
-                            className="border border-gray-100 rounded-xl overflow-hidden bg-gray-50 p-2 space-y-1"
+                            className="relative border border-gray-100 rounded-xl overflow-hidden bg-gray-50 p-2 space-y-1 group"
                           >
+                            <button
+                              onClick={() => handleDeleteItem(pl.id, item.id, item.video_id)}
+                              className="absolute top-3 right-3 z-10 bg-black/60 hover:bg-red-600 text-white w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center transition"
+                              title="この動画をマイリストから削除"
+                            >
+                              ✕
+                            </button>
                             <div className="aspect-video rounded-lg overflow-hidden">
                               <img
                                 src={
