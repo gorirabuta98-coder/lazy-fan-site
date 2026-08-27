@@ -34,6 +34,9 @@ export function VideoList({
   const router = useRouter()
   const supabase = createClient()
 
+  // 👤 ログインユーザーの状態管理
+  const [user, setUser] = useState<any>(null)
+
   // 3つのタブ状態 ('all' | 'search' | 'mylist')
   const [activeTab, setActiveTab] = useState<'all' | 'search' | 'mylist'>('all')
 
@@ -66,6 +69,21 @@ export function VideoList({
   // 現在表示中の動画リスト
   const currentTabVideos = activeTab === 'all' ? initialVideos : searchResults
 
+  // 🔒 ログイン状態の監視
+  useEffect(() => {
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser()
+      setUser(data.user)
+    }
+    getUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase])
+
   // 🔍 全動画を対象とした検索処理
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
@@ -95,6 +113,7 @@ export function VideoList({
   }
 
   const reloadPlaylists = async () => {
+    if (!user) return
     try {
       const res = await fetch('/api/playlists')
       if (res.ok) {
@@ -107,14 +126,16 @@ export function VideoList({
   }
 
   useEffect(() => {
-    reloadPlaylists()
-  }, [])
-
-  useEffect(() => {
-    if (activeTab === 'mylist') {
+    if (user) {
       reloadPlaylists()
     }
-  }, [activeTab])
+  }, [user])
+
+  useEffect(() => {
+    if (activeTab === 'mylist' && user) {
+      reloadPlaylists()
+    }
+  }, [activeTab, user])
 
   const handleCreatePlaylist = async () => {
     if (!newPlaylistTitle.trim()) {
@@ -239,8 +260,13 @@ export function VideoList({
     )
   }
 
-  // 💡 複数選択状態も考慮して追加対象を決定
+  // 🔒 ログインチェック付き追加処理 (1件)
   const handleSingleAddToMyList = (video: Video) => {
+    if (!user) {
+      alert('マイリスト機能を利用するにはログインが必要です。画面右上のボタンからログインしてください。')
+      return
+    }
+
     if (selectedVideoIds.length > 0) {
       const targets = currentTabVideos.filter((v) => selectedVideoIds.includes(v.id))
       if (!selectedVideoIds.includes(video.id)) {
@@ -252,7 +278,13 @@ export function VideoList({
     }
   }
 
+  // 🔒 ログインチェック付き追加処理 (一括)
   const handleBatchAddToMyList = () => {
+    if (!user) {
+      alert('マイリスト機能を利用するにはログインが必要です。画面右上のボタンからログインしてください。')
+      return
+    }
+
     if (selectedVideoIds.length === 0) return
     const targets = currentTabVideos.filter((v) => selectedVideoIds.includes(v.id))
     setSelectedVideosForModal(targets)
@@ -338,7 +370,7 @@ export function VideoList({
         </div>
       </div>
 
-      {/* 1️⃣ タブ：動画一覧（Part切り替え表示のみ） */}
+      {/* 1️⃣ タブ：動画一覧 */}
       {activeTab === 'all' && (
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
           <div className="flex justify-between items-center">
@@ -572,165 +604,138 @@ export function VideoList({
         </div>
       )}
 
-      {/* 3️⃣ タブ：マイリスト一覧 */}
+      {/* 3️⃣ タブ：マイリスト一覧（ログイン制御付き） */}
       {activeTab === 'mylist' && (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-gray-900">マイリスト一覧</h2>
-            <button
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-1.5 cursor-pointer"
-            >
-              ➕ 新規マイリスト作成
-            </button>
+        !user ? (
+          <div className="bg-white p-12 rounded-3xl text-center border border-gray-100 shadow-sm space-y-4 py-16">
+            <div className="text-4xl">🔒</div>
+            <h3 className="text-base font-bold text-gray-800">マイリストの閲覧にはログインが必要です</h3>
+            <p className="text-xs text-gray-400 max-w-sm mx-auto leading-relaxed">
+              自分だけのマイリストを作成・保存するには、画面右上のボタンからログインを行ってください。
+            </p>
           </div>
-
-          {showCreateForm && (
-            <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex gap-3">
-              <input
-                type="text"
-                placeholder="好きなマイリスト名を入力（例: 神回まとめ）"
-                value={newPlaylistTitle}
-                onChange={(e) => setNewPlaylistTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleCreatePlaylist()
-                }}
-                className="flex-1 px-4 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
-                autoFocus
-              />
+        ) : (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">マイリスト一覧</h2>
               <button
-                type="button"
-                onClick={handleCreatePlaylist}
-                disabled={isCreatingList}
-                className="bg-slate-900 hover:bg-slate-800 disabled:bg-gray-300 text-white text-xs font-bold px-5 py-2 rounded-xl transition cursor-pointer"
+                onClick={() => setShowCreateForm(!showCreateForm)}
+                className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-1.5 cursor-pointer"
               >
-                {isCreatingList ? '作成中...' : '作成'}
+                ➕ 新規マイリスト作成
               </button>
             </div>
-          )}
 
-          {playlists.length === 0 ? (
-            <div className="bg-white p-12 rounded-3xl text-center border border-gray-100 text-gray-400 text-sm space-y-3">
-              <p>マイリストがありません。</p>
-              <p className="text-xs text-gray-500">「➕ 新規マイリスト作成」ボタンから箱を作成してください。</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {playlists.map((pl) => {
-                const items = pl.playlist_items || []
-                const isExpanded = expandedPlaylistId === pl.id
-                const isEditing = editingPlaylistId === pl.id
+            {showCreateForm && (
+              <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex gap-3">
+                <input
+                  type="text"
+                  placeholder="好きなマイリスト名を入力（例: 神回まとめ）"
+                  value={newPlaylistTitle}
+                  onChange={(e) => setNewPlaylistTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreatePlaylist()
+                  }}
+                  className="flex-1 px-4 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={handleCreatePlaylist}
+                  disabled={isCreatingList}
+                  className="bg-slate-900 hover:bg-slate-800 disabled:bg-gray-300 text-white text-xs font-bold px-5 py-2 rounded-xl transition cursor-pointer"
+                >
+                  {isCreatingList ? '作成中...' : '作成'}
+                </button>
+              </div>
+            )}
 
-                return (
-                  <div
-                    key={pl.id}
-                    className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      {isEditing ? (
-                        <div className="flex items-center gap-2 flex-1 mr-2">
-                          <input
-                            type="text"
-                            value={editingTitle}
-                            onChange={(e) => setEditingTitle(e.target.value)}
-                            className="flex-1 px-3 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
-                            autoFocus
-                          />
-                          <button
-                            onClick={() => handleRenamePlaylist(pl.id)}
-                            className="bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg font-bold"
-                          >
-                            保存
-                          </button>
-                          <button
-                            onClick={() => setEditingPlaylistId(null)}
-                            className="bg-gray-100 text-gray-600 text-xs px-2 py-1.5 rounded-lg"
-                          >
-                            キャンセル
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <span className="text-amber-500 text-xl">📁</span>
-                          <h3 className="font-bold text-base text-gray-800">{pl.title}</h3>
-                        </div>
-                      )}
+            {playlists.length === 0 ? (
+              <div className="bg-white p-12 rounded-3xl text-center border border-gray-100 text-gray-400 text-sm space-y-3">
+                <p>マイリストがありません。</p>
+                <p className="text-xs text-gray-500">「➕ 新規マイリスト作成」ボタンから箱を作成してください。</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {playlists.map((pl) => {
+                  const items = pl.playlist_items || []
+                  const isExpanded = expandedPlaylistId === pl.id
+                  const isEditing = editingPlaylistId === pl.id
 
-                      {!isEditing && (
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => setSharingPlaylist({ id: pl.id, title: pl.title })}
-                            className="p-1.5 text-xs text-blue-500 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition flex items-center gap-1 font-bold"
-                            title="共有・URLコピー"
-                          >
-                            🔗 共有
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingPlaylistId(pl.id)
-                              setEditingTitle(pl.title)
-                            }}
-                            className="p-1.5 text-xs text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition"
-                            title="名前変更"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            onClick={() => handleDeletePlaylist(pl.id, pl.title)}
-                            className="p-1.5 text-xs text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition"
-                            title="リスト削除"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    <p className="text-xs text-gray-400">動画 {items.length} 件</p>
-
-                    {items.length > 0 && !isExpanded && (
-                      <div className="flex gap-2 overflow-x-auto pb-2">
-                        {items.slice(0, 4).map((item: any, idx) => (
-                          <div
-                            key={idx}
-                            className="w-28 flex-shrink-0 aspect-video rounded-lg overflow-hidden border border-gray-100 bg-gray-100"
-                          >
-                            <img
-                              src={
-                                item.thumbnail_url ||
-                                item.thumbnailUrl ||
-                                `https://i.ytimg.com/vi/${item.video_id}/hqdefault.jpg`
-                              }
-                              alt={item.title || item.video_title}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <button
-                      onClick={() => setExpandedPlaylistId(isExpanded ? null : pl.id)}
-                      className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-xs font-bold text-center border border-gray-100 transition cursor-pointer"
+                  return (
+                    <div
+                      key={pl.id}
+                      className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4"
                     >
-                      {isExpanded ? '▲ 動画一覧を閉じる' : '▼ 動画一覧を表示'}
-                    </button>
-
-                    {isExpanded && (
-                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
-                        {items.map((item: any, idx) => (
-                          <div
-                            key={idx}
-                            className="relative border border-gray-100 rounded-xl overflow-hidden bg-gray-50 p-2 space-y-1 group"
-                          >
+                      <div className="flex items-center justify-between">
+                        {isEditing ? (
+                          <div className="flex items-center gap-2 flex-1 mr-2">
+                            <input
+                              type="text"
+                              value={editingTitle}
+                              onChange={(e) => setEditingTitle(e.target.value)}
+                              className="flex-1 px-3 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                              autoFocus
+                            />
                             <button
-                              onClick={() => handleDeleteItem(pl.id, item.id, item.video_id)}
-                              className="absolute top-3 right-3 z-10 bg-black/60 hover:bg-red-600 text-white w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center transition"
-                              title="この動画をマイリストから削除"
+                              onClick={() => handleRenamePlaylist(pl.id)}
+                              className="bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg font-bold"
                             >
-                              ✕
+                              保存
                             </button>
-                            <div className="aspect-video rounded-lg overflow-hidden">
+                            <button
+                              onClick={() => setEditingPlaylistId(null)}
+                              className="bg-gray-100 text-gray-600 text-xs px-2 py-1.5 rounded-lg"
+                            >
+                              キャンセル
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-amber-500 text-xl">📁</span>
+                            <h3 className="font-bold text-base text-gray-800">{pl.title}</h3>
+                          </div>
+                        )}
+
+                        {!isEditing && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setSharingPlaylist({ id: pl.id, title: pl.title })}
+                              className="p-1.5 text-xs text-blue-500 hover:text-blue-700 rounded-lg hover:bg-blue-50 transition flex items-center gap-1 font-bold"
+                              title="共有・URLコピー"
+                            >
+                              🔗 共有
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingPlaylistId(pl.id)
+                                setEditingTitle(pl.title)
+                              }}
+                              className="p-1.5 text-xs text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition"
+                              title="名前変更"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleDeletePlaylist(pl.id, pl.title)}
+                              className="p-1.5 text-xs text-red-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition"
+                              title="リスト削除"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-gray-400">動画 {items.length} 件</p>
+
+                      {items.length > 0 && !isExpanded && (
+                        <div className="flex gap-2 overflow-x-auto pb-2">
+                          {items.slice(0, 4).map((item: any, idx) => (
+                            <div
+                              key={idx}
+                              className="w-28 flex-shrink-0 aspect-video rounded-lg overflow-hidden border border-gray-100 bg-gray-100"
+                            >
                               <img
                                 src={
                                   item.thumbnail_url ||
@@ -741,19 +746,56 @@ export function VideoList({
                                 className="w-full h-full object-cover"
                               />
                             </div>
-                            <p className="text-[10px] font-bold text-gray-700 line-clamp-2">
-                              {item.title || item.video_title}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => setExpandedPlaylistId(isExpanded ? null : pl.id)}
+                        className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-xs font-bold text-center border border-gray-100 transition cursor-pointer"
+                      >
+                        {isExpanded ? '▲ 動画一覧を閉じる' : '▼ 動画一覧を表示'}
+                      </button>
+
+                      {isExpanded && (
+                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+                          {items.map((item: any, idx) => (
+                            <div
+                              key={idx}
+                              className="relative border border-gray-100 rounded-xl overflow-hidden bg-gray-50 p-2 space-y-1 group"
+                            >
+                              <button
+                                onClick={() => handleDeleteItem(pl.id, item.id, item.video_id)}
+                                className="absolute top-3 right-3 z-10 bg-black/60 hover:bg-red-600 text-white w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center transition"
+                                title="この動画をマイリストから削除"
+                              >
+                                ✕
+                              </button>
+                              <div className="aspect-video rounded-lg overflow-hidden">
+                                <img
+                                  src={
+                                    item.thumbnail_url ||
+                                    item.thumbnailUrl ||
+                                    `https://i.ytimg.com/vi/${item.video_id}/hqdefault.jpg`
+                                  }
+                                  alt={item.title || item.video_title}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <p className="text-[10px] font-bold text-gray-700 line-clamp-2">
+                                {item.title || item.video_title}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
       )}
 
       {/* モーダル群 */}
