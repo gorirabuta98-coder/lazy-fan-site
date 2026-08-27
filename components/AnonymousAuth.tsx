@@ -1,12 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
-import { ensureAnonymousSession } from '@/lib/supabase/client'
-
 export default function AnonymousAuth() {
-  useEffect(() => {
-    ensureAnonymousSession()
-  }, [])
-
+  // 匿名ログイン機能は廃止したため何も表示・実行しません
   return null
 }

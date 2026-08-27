@@ -29,7 +29,32 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const pathname = request.nextUrl.pathname
+
+  // ログイン不要でアクセスできるページ
+  const isPublicPage =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/playlist/') ||
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/_next')
+
+  // 未ログインユーザーは /login へ自動転送
+  if (!user && !isPublicPage) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // ログイン済みユーザーが /login に来たらトップへ自動転送
+  if (user && pathname.startsWith('/login')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
+    return NextResponse.redirect(url)
+  }
 
   return response
 }

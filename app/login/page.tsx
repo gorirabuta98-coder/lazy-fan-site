@@ -21,7 +21,6 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        // 新規登録
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -29,7 +28,6 @@ export default function LoginPage() {
         if (error) throw error
         setMessage('確認メールを送信しました！メールボックスをご確認ください。')
       } else {
-        // ログイン
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,

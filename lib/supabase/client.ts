@@ -7,11 +7,7 @@ export function createClient() {
   )
 }
 
-// 匿名ログイン用関数の定義を追加（ビルドエラー解消）
+// ビルドエラー防止用のダミー関数
 export async function ensureAnonymousSession() {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) {
-    await supabase.auth.signInAnonymously()
-  }
+  return
 }
