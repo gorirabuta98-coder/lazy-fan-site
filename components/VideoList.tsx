@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import AddToListModal, { PlaylistWithItems } from '@/components/AddToListModal'
 import ShareModal from '@/components/ShareModal'
 import HeaderAuth from '@/components/HeaderAuth'
+import { createClient } from '@/lib/supabase/client'
 
 interface Video {
   id: string
@@ -31,15 +32,22 @@ export function VideoList({
   currentPart,
 }: VideoListProps) {
   const router = useRouter()
+  const supabase = createClient()
+
+  // 3つのタブ状態 ('all' | 'search' | 'mylist')
+  const [activeTab, setActiveTab] = useState<'all' | 'search' | 'mylist'>('all')
+
   const [playlists, setPlaylists] = useState<PlaylistWithItems[]>(initialPlaylists)
-  const [activeTab, setActiveTab] = useState<'all' | 'mylist'>('all')
   const [selectedVideosForModal, setSelectedVideosForModal] = useState<Video[]>([])
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([])
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
 
-  // 🔍 検索キーワード用State
+  // 🔍 動画検索タブ用State
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Video[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
 
   // 共有モーダル用
   const [sharingPlaylist, setSharingPlaylist] = useState<{ id: string; title: string } | null>(null)
@@ -55,10 +63,33 @@ export function VideoList({
 
   const totalParts = Math.ceil(totalCount / pageSize)
 
-  // 🔍 検索キーワードで動画をリアルタイム絞り込み
-  const filteredVideos = initialVideos.filter((video) =>
-    video.title.toLowerCase().includes(searchQuery.toLowerCase().trim())
-  )
+  // 🔍 全動画（2,663件〜）を対象とした Supabase 直接検索
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!searchQuery.trim()) return
+
+    setIsSearching(true)
+    setHasSearched(true)
+    setSelectedVideoIds([])
+
+    try {
+      const { data, error } = await supabase
+        .from('videos')
+        .select('*')
+        .ilike('title', `%${searchQuery.trim()}%`)
+        .order('published_at', { ascending: false })
+
+      if (error) {
+        console.error('検索エラー:', error)
+      } else {
+        setSearchResults(data || [])
+      }
+    } catch (err) {
+      console.error('検索例外:', err)
+    } finally {
+      setIsSearching(false)
+    }
+  }
 
   const reloadPlaylists = async () => {
     try {
@@ -82,7 +113,6 @@ export function VideoList({
     }
   }, [activeTab])
 
-  // マイリスト新規作成
   const handleCreatePlaylist = async () => {
     if (!newPlaylistTitle.trim()) {
       alert('マイリストのタイトルを入力してください。')
@@ -113,7 +143,6 @@ export function VideoList({
     }
   }
 
-  // マイリスト名前変更
   const handleRenamePlaylist = async (playlistId: string) => {
     if (!editingTitle.trim()) return
 
@@ -137,7 +166,6 @@ export function VideoList({
     }
   }
 
-  // マイリスト削除
   const handleDeletePlaylist = async (playlistId: string, title: string) => {
     if (!confirm(`マイリスト「${title}」を削除してもよろしいですか？`)) return
 
@@ -157,7 +185,6 @@ export function VideoList({
     }
   }
 
-  // マイリストから特定動画を削除
   const handleDeleteItem = async (playlistId: string, itemId?: string, videoId?: string) => {
     if (!confirm('この動画をマイリストから削除しますか？')) return
 
@@ -179,7 +206,6 @@ export function VideoList({
     }
   }
 
-  // YouTube同期処理
   const handleSync = async () => {
     setIsSyncing(true)
     try {
@@ -196,11 +222,13 @@ export function VideoList({
     }
   }
 
+  const currentTabVideos = activeTab === 'all' ? initialVideos : searchResults
+
   const handleToggleSelectAll = () => {
-    if (selectedVideoIds.length === filteredVideos.length) {
+    if (selectedVideoIds.length === currentTabVideos.length) {
       setSelectedVideoIds([])
     } else {
-      setSelectedVideoIds(filteredVideos.map((v) => v.id))
+      setSelectedVideoIds(currentTabVideos.map((v) => v.id))
     }
   }
 
@@ -216,24 +244,24 @@ export function VideoList({
 
   const handleBatchAddToMyList = () => {
     if (selectedVideoIds.length === 0) return
-    const targets = initialVideos.filter((v) => selectedVideoIds.includes(v.id))
+    const targets = currentTabVideos.filter((v) => selectedVideoIds.includes(v.id))
     setSelectedVideosForModal(targets)
   }
 
   return (
     <div className="space-y-6">
-      {/* 上部ヘッダー */}
+      {/* 上部ヘッダー ＆ タブ切替ボタン */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-2 border-b border-gray-100 gap-4">
         <div className="flex items-center gap-3">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            {activeTab === 'all' && '📺 動画一覧'}
+            {activeTab === 'search' && '🔍 動画検索'}
+            {activeTab === 'mylist' && '📁 マイリスト'}
+          </h2>
           {activeTab === 'all' && (
-            <>
-              <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                📺 動画一覧
-              </h2>
-              <span className="bg-gray-100 text-gray-500 text-xs px-2.5 py-0.5 rounded-full font-medium">
-                全 {totalCount} 件
-              </span>
-            </>
+            <span className="bg-gray-100 text-gray-500 text-xs px-2.5 py-0.5 rounded-full font-medium">
+              全 {totalCount} 件
+            </span>
           )}
         </div>
 
@@ -253,9 +281,13 @@ export function VideoList({
             )}
           </button>
 
+          {/* 3分割タブナビゲーション */}
           <div className="flex gap-1 bg-gray-100 p-1 rounded-2xl">
             <button
-              onClick={() => setActiveTab('all')}
+              onClick={() => {
+                setActiveTab('all')
+                setSelectedVideoIds([])
+              }}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
                 activeTab === 'all'
                   ? 'bg-red-600 text-white shadow-sm'
@@ -265,8 +297,24 @@ export function VideoList({
               動画一覧
             </button>
             <button
-              onClick={() => setActiveTab('mylist')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+              onClick={() => {
+                setActiveTab('search')
+                setSelectedVideoIds([])
+              }}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+                activeTab === 'search'
+                  ? 'bg-red-600 text-white shadow-sm'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+            >
+              🔍 動画検索
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('mylist')
+                setSelectedVideoIds([])
+              }}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
                 activeTab === 'mylist'
                   ? 'bg-red-600 text-white shadow-sm'
                   : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200'
@@ -280,35 +328,31 @@ export function VideoList({
         </div>
       </div>
 
-      {/* 動画一覧表示 */}
+      {/* 1️⃣ タブ：動画一覧（Part切り替え表示のみ） */}
       {activeTab === 'all' && (
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
-          
-          {/* 🔍 検索バー ＆ 操作ボタンエリア */}
-          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
-            {/* 検索インプット */}
-            <div className="relative flex-1 max-w-md">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 text-sm pointer-events-none">
-                🔍
-              </span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="タイトルでキーワード検索（例: ドッキリ）"
-                className="w-full pl-9 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 text-xs font-bold"
-                >
-                  ✕
-                </button>
-              )}
+          <div className="flex justify-between items-center">
+            <div className="space-y-1">
+              <p className="text-xs text-gray-400 font-medium">
+                ページ選択 (Part 1 ～ Part {totalParts})
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {Array.from({ length: totalParts }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => router.push(`/?part=${p}`)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
+                      currentPart === p
+                        ? 'bg-red-600 text-white font-bold'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    Part {p}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* 一括操作ボタン */}
             <div className="flex justify-end items-center gap-2">
               {selectedVideoIds.length > 0 && (
                 <button
@@ -322,51 +366,150 @@ export function VideoList({
                 onClick={handleToggleSelectAll}
                 className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-2 rounded-xl font-bold transition whitespace-nowrap"
               >
-                {selectedVideoIds.length === filteredVideos.length && filteredVideos.length > 0
+                {selectedVideoIds.length === initialVideos.length && initialVideos.length > 0
                   ? '全解除'
                   : '表示中を全選択'}
               </button>
             </div>
           </div>
 
-          {/* ページネーション（Part選択） */}
-          <div className="space-y-2 pt-2 border-t border-gray-100">
-            <p className="text-xs text-gray-400 font-medium">
-              ページ選択 (Part 1 ～ Part {totalParts})
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {Array.from({ length: totalParts }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => router.push(`/?part=${p}`)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                    currentPart === p
-                      ? 'bg-red-600 text-white font-bold'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {initialVideos.map((video) => {
+              const isSelected = selectedVideoIds.includes(video.id)
+              const thumb =
+                video.thumbnailUrl ||
+                video.thumbnail_url ||
+                `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`
+              const dateStr = video.publishedAt || video.published_at || ''
+
+              return (
+                <div
+                  key={video.id}
+                  className={`relative bg-white border rounded-2xl overflow-hidden shadow-sm flex flex-col justify-between transition hover:shadow-md ${
+                    isSelected ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-100'
                   }`}
                 >
-                  Part {p}
-                </button>
-              ))}
-            </div>
-          </div>
+                  <div className="relative aspect-video">
+                    <button
+                      onClick={() => toggleSelectVideo(video.id)}
+                      className={`absolute top-2 left-2 z-10 w-6 h-6 rounded-lg border-2 transition flex items-center justify-center ${
+                        isSelected
+                          ? 'bg-red-600 border-red-600 text-white'
+                          : 'border-white/80 bg-black/30 hover:bg-black/50'
+                      }`}
+                    >
+                      {isSelected && <span className="text-xs font-bold">✓</span>}
+                    </button>
+                    <img src={thumb} alt={video.title} className="w-full h-full object-cover" />
+                  </div>
 
-          {/* 検索結果の件数表示（検索時のみ） */}
-          {searchQuery && (
-            <p className="text-xs font-bold text-gray-500">
-              「{searchQuery}」の検索結果: <span className="text-red-600">{filteredVideos.length}</span> 件
-            </p>
+                  <div className="p-3 space-y-3 flex-1 flex flex-col justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-gray-800 line-clamp-2 leading-snug">
+                        {video.title}
+                      </p>
+                      {dateStr && (
+                        <p className="text-[10px] text-gray-400 mt-1">{dateStr.split('T')[0]}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleSingleAddToMyList(video)}
+                      className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-bold border border-gray-100 transition"
+                    >
+                      + マイリストに追加
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 2️⃣ タブ：動画検索 */}
+      {activeTab === 'search' && (
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+          <form onSubmit={handleSearch} className="flex gap-3 max-w-2xl mx-auto">
+            <div className="relative flex-1">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 text-base pointer-events-none">
+                🔍
+              </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="全動画からキーワード検索（例: ドッキリ, 大食い）"
+                className="w-full pl-11 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
+                autoFocus
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('')
+                    setSearchResults([])
+                    setHasSearched(false)
+                  }}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 text-sm font-bold"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <button
+              type="submit"
+              disabled={isSearching || !searchQuery.trim()}
+              className="bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white font-bold text-xs px-6 py-3 rounded-2xl transition cursor-pointer"
+            >
+              {isSearching ? '検索中...' : '検索'}
+            </button>
+          </form>
+
+          {hasSearched && !isSearching && (
+            <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+              <p className="text-xs font-bold text-gray-600">
+                「{searchQuery}」の検索結果: <span className="text-red-600">{searchResults.length}</span> 件
+              </p>
+
+              {searchResults.length > 0 && (
+                <div className="flex justify-end items-center gap-2">
+                  {selectedVideoIds.length > 0 && (
+                    <button
+                      onClick={handleBatchAddToMyList}
+                      className="bg-red-600 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-red-700 transition"
+                    >
+                      選択中 ({selectedVideoIds.length}) をマイリストに追加
+                    </button>
+                  )}
+                  <button
+                    onClick={handleToggleSelectAll}
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-2 rounded-xl font-bold transition whitespace-nowrap"
+                  >
+                    {selectedVideoIds.length === searchResults.length
+                      ? '全解除'
+                      : '全選択'}
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
-          {/* 該当動画がない場合 */}
-          {filteredVideos.length === 0 ? (
+          {!hasSearched && !isSearching && (
+            <div className="text-center py-16 text-gray-400 space-y-2">
+              <p className="text-3xl">🔍</p>
+              <p className="text-xs font-medium">キーワードを入力して全動画（{totalCount}件）から検索できます</p>
+            </div>
+          )}
+
+          {hasSearched && !isSearching && searchResults.length === 0 && (
             <div className="text-center py-12 text-gray-400 text-xs bg-gray-50 rounded-2xl border border-dashed border-gray-200">
               キーワード「{searchQuery}」に一致する動画は見つかりませんでした。
             </div>
-          ) : (
-            /* 動画カードグリッド */
+          )}
+
+          {searchResults.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredVideos.map((video) => {
+              {searchResults.map((video) => {
                 const isSelected = selectedVideoIds.includes(video.id)
                 const thumb =
                   video.thumbnailUrl ||
@@ -401,9 +544,7 @@ export function VideoList({
                           {video.title}
                         </p>
                         {dateStr && (
-                          <p className="text-[10px] text-gray-400 mt-1">
-                            {dateStr.split('T')[0]}
-                          </p>
+                          <p className="text-[10px] text-gray-400 mt-1">{dateStr.split('T')[0]}</p>
                         )}
                       </div>
                       <button
@@ -421,20 +562,19 @@ export function VideoList({
         </div>
       )}
 
-      {/* マイリスト一覧表示 */}
+      {/* 3️⃣ タブ：マイリスト一覧 */}
       {activeTab === 'mylist' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-gray-900">マイリスト一覧</h2>
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-1.5"
+              className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-sm flex items-center gap-1.5 cursor-pointer"
             >
               ➕ 新規マイリスト作成
             </button>
           </div>
 
-          {/* 新規マイリスト作成フォーム */}
           {showCreateForm && (
             <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex gap-3">
               <input
@@ -561,7 +701,7 @@ export function VideoList({
 
                     <button
                       onClick={() => setExpandedPlaylistId(isExpanded ? null : pl.id)}
-                      className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-xs font-bold text-center border border-gray-100 transition"
+                      className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl text-xs font-bold text-center border border-gray-100 transition cursor-pointer"
                     >
                       {isExpanded ? '▲ 動画一覧を閉じる' : '▼ 動画一覧を表示'}
                     </button>
@@ -606,7 +746,7 @@ export function VideoList({
         </div>
       )}
 
-      {/* マイリスト追加モーダル */}
+      {/* モーダル群 */}
       {selectedVideosForModal.length > 0 && (
         <AddToListModal
           selectedVideos={selectedVideosForModal}
@@ -619,7 +759,6 @@ export function VideoList({
         />
       )}
 
-      {/* 共有モーダル */}
       {sharingPlaylist && (
         <ShareModal
           playlist={sharingPlaylist}
