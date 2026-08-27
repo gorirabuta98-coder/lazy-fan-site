@@ -3,6 +3,20 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+
+function getErrorMessage(error: any): string {
+  if (!error) return 'エラーが発生しました'
+  const message = error.message || ''
+
+  if (message.includes('Invalid login credentials')) {
+    return 'メールアドレスまたはパスワードが間違っています。'
+  }
+  if (message.includes('User already registered')) {
+    return 'このメールアドレスは既に登録されています。'
+  }
+  return message || 'エラーが発生しました。'
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -21,37 +35,20 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        // 新規登録処理
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-        })
+        const { data, error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
-
-        // セッションが確立していない場合は自動ログインを試みる
         if (!data.session) {
-          const { error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          })
+          const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
           if (signInError) throw signInError
         }
-
-        // 即座にトップ画面へ移動
-        router.push('/')
-        router.refresh()
       } else {
-        // ログイン処理
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
-        router.push('/')
-        router.refresh()
       }
+      router.push('/')
+      router.refresh()
     } catch (error: any) {
-      setMessage(error.message || 'エラーが発生しました')
+      setMessage(getErrorMessage(error))
     } finally {
       setLoading(false)
     }
@@ -100,7 +97,7 @@ export default function LoginPage() {
           </div>
 
           {message && (
-            <p className="text-xs font-bold text-center text-red-500 bg-red-50 p-3 rounded-xl">
+            <p className="text-xs font-bold text-center text-red-500 bg-red-50 p-3 rounded-xl leading-relaxed">
               {message}
             </p>
           )}
@@ -114,18 +111,31 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="text-center pt-2">
+        <div className="space-y-3 pt-2 text-center">
           <button
             onClick={() => {
               setIsSignUp(!isSignUp)
               setMessage('')
             }}
-            className="text-xs font-bold text-gray-500 hover:text-gray-900 underline"
+            className="text-xs font-bold text-gray-500 hover:text-gray-900 underline block w-full"
           >
             {isSignUp
               ? 'すでにアカウントをお持ちの方はこちら（ログイン）'
               : 'アカウントをお持ちでない方はこちら（新規登録）'}
           </button>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+            <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-gray-400">または</span></div>
+          </div>
+
+          {/* ① ゲスト利用ボタン */}
+          <Link
+            href="/"
+            className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition block text-center"
+          >
+            ログインせずに使う（ゲスト利用）
+          </Link>
         </div>
       </div>
     </div>
