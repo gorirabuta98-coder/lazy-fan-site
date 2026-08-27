@@ -3,150 +3,125 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-
-function getErrorMessage(error: any): string {
-  if (!error) return 'エラーが発生しました'
-  const message = error.message || ''
-
-  if (message.includes('Invalid login credentials')) {
-    return 'メールアドレスまたはパスワードが間違っています。'
-  }
-  if (message.includes('User already registered')) {
-    return 'このメールアドレスは既に登録されています。'
-  }
-  return message || 'エラーが発生しました。'
-}
+import Link from 'next/link'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
-
   const supabase = createClient()
   const router = useRouter()
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrorMsg('')
     setLoading(true)
-    setMessage('')
 
-    try {
-      if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({ email, password })
-        if (error) throw error
-        if (!data.session) {
-          const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-          if (signInError) throw signInError
-        }
+    // 1. ゲスト用Cookieを消去
+    document.cookie = 'guest_mode=; path=/; max-age=0'
+
+    // 2. ログイン実行
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      console.error('ログインエラー:', error)
+      if (error.message.includes('Invalid login credentials')) {
+        setErrorMsg('メールアドレスまたはパスワードが正しくありません。')
+      } else if (error.message.includes('Email not confirmed')) {
+        setErrorMsg('メールアドレスの確認が完了していません。届いたメールのリンクをクリックしてください。')
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) throw error
+        setErrorMsg(`ログイン失敗: ${error.message}`)
       }
-      
-      // ログイン成功時はゲストフラグをクリアして移動
-      document.cookie = 'guest_mode=; path=/; max-age=0'
-      router.push('/')
-      router.refresh()
-    } catch (error: any) {
-      setMessage(getErrorMessage(error))
-    } finally {
       setLoading(false)
+      return
     }
+
+    // 3. ログイン成功時
+    router.push('/')
+    router.refresh()
   }
 
-  // ゲスト利用ボタンを押した時の処理
   const handleGuestLogin = () => {
-    // ゲストフラグ（7日間有効）を保存してトップへ
-    document.cookie = 'guest_mode=true; path=/; max-age=604800'
+    document.cookie = 'guest_mode=true; path=/; max-age=86400'
     router.push('/')
     router.refresh()
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 max-w-md w-full space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {isSignUp ? 'アカウント作成' : 'ログイン'}
-          </h1>
-          <p className="text-xs text-gray-500">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 max-w-md w-full space-y-6 text-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">ログイン</h1>
+          <p className="text-xs text-gray-500 mt-2">
             マイリストを保存・管理するにはログインが必要です。
           </p>
         </div>
 
-        <form onSubmit={handleAuth} className="space-y-4">
+        {/* 💡 エラーメッセージ表示エリア */}
+        {errorMsg && (
+          <div className="bg-red-50 text-red-600 p-3 rounded-xl text-xs font-bold border border-red-100 text-left">
+            ⚠️ {errorMsg}
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} className="space-y-4 text-left">
           <div>
-            <label className="text-xs font-bold text-gray-700 block mb-1">
+            <label className="block text-xs font-bold text-gray-700 mb-1">
               メールアドレス
             </label>
             <input
               type="email"
-              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
-              placeholder="example@email.com"
+              required
+              className="w-full px-4 py-3 bg-blue-50/50 border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 transition"
+              placeholder="gorirabuta98@gmail.com"
             />
           </div>
 
           <div>
-            <label className="text-xs font-bold text-gray-700 block mb-1">
+            <label className="block text-xs font-bold text-gray-700 mb-1">
               パスワード
             </label>
             <input
               type="password"
-              required
-              minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
-              placeholder="6文字以上"
+              required
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500 transition"
             />
           </div>
-
-          {message && (
-            <p className="text-xs font-bold text-center text-red-500 bg-red-50 p-3 rounded-xl leading-relaxed">
-              {message}
-            </p>
-          )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white font-bold rounded-xl text-xs transition cursor-pointer"
+            className="w-full py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold rounded-xl text-sm transition cursor-pointer"
           >
-            {loading ? '処理中...' : isSignUp ? '登録する' : 'ログイン'}
+            {loading ? 'ログイン処理中...' : 'ログイン'}
           </button>
         </form>
 
-        <div className="space-y-3 pt-2 text-center">
-          <button
-            onClick={() => {
-              setIsSignUp(!isSignUp)
-              setMessage('')
-            }}
-            className="text-xs font-bold text-gray-500 hover:text-gray-900 underline block w-full cursor-pointer"
-          >
-            {isSignUp
-              ? 'すでにアカウントをお持ちの方はこちら（ログイン）'
-              : 'アカウントをお持ちでない方はこちら（新規登録）'}
-          </button>
-
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
-            <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-gray-400">または</span></div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGuestLogin}
-            className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition block text-center cursor-pointer"
-          >
-            ログインせずに使う（ゲスト利用）
-          </button>
+        <div className="text-xs">
+          <Link href="/signup" className="text-gray-500 hover:underline">
+            アカウントをお持ちでない方はこちら（新規登録）
+          </Link>
         </div>
+
+        <div className="relative flex items-center justify-center my-4">
+          <div className="border-t border-gray-200 w-full"></div>
+          <span className="bg-white px-3 text-xs text-gray-400 absolute">または</span>
+        </div>
+
+        <button
+          onClick={handleGuestLogin}
+          className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition cursor-pointer"
+        >
+          ログインせずに使う（ゲスト利用）
+        </button>
       </div>
     </div>
   )
