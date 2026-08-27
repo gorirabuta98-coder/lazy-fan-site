@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import AddToListModal, { PlaylistWithItems } from '@/components/AddToListModal'
 
@@ -48,12 +48,27 @@ export function VideoList({
   const totalParts = Math.ceil(totalCount / pageSize)
 
   const reloadPlaylists = async () => {
-    const res = await fetch('/api/playlists')
-    if (res.ok) {
-      const updated = await res.json()
-      setPlaylists(updated)
+    try {
+      const res = await fetch('/api/playlists')
+      if (res.ok) {
+        const updated = await res.json()
+        setPlaylists(updated)
+      }
+    } catch (error) {
+      console.error('マイリスト取得エラー:', error)
     }
   }
+
+  // 初期ロード時 & タブ切り替え時にマイリストを自動取得
+  useEffect(() => {
+    reloadPlaylists()
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'mylist') {
+      reloadPlaylists()
+    }
+  }, [activeTab])
 
   // マイリスト新規作成
   const handleCreatePlaylist = async () => {
