@@ -21,13 +21,27 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        // 新規登録処理
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         })
         if (error) throw error
-        setMessage('確認メールを送信しました！メールボックスをご確認ください。')
+
+        // セッションが確立していない場合は自動ログインを試みる
+        if (!data.session) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          })
+          if (signInError) throw signInError
+        }
+
+        // 即座にトップ画面へ移動
+        router.push('/')
+        router.refresh()
       } else {
+        // ログイン処理
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
