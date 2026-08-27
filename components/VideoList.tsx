@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import AddToListModal, { PlaylistWithItems } from '@/components/AddToListModal'
 import ShareModal from '@/components/ShareModal'
 import HeaderAuth from '@/components/HeaderAuth'
+import GuideModal from '@/components/GuideModal'
 import { createClient } from '@/lib/supabase/client'
 
 interface Video {
@@ -45,6 +46,9 @@ export function VideoList({
   const [selectedVideoIds, setSelectedVideoIds] = useState<string[]>([])
   const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
+
+  // 📖 使い方ガイドモーダル用State
+  const [showGuide, setShowGuide] = useState(false)
 
   // 🔗 開く先選択モーダル用State
   const [targetVideo, setTargetVideo] = useState<{ id: string; title: string } | null>(null)
@@ -292,7 +296,6 @@ export function VideoList({
 
   // 📲 YouTubeアプリまたはブラウザで開く処理
   const openInApp = (videoId: string) => {
-    // iOS / Android アプリ起動用スキーム
     window.location.href = `youtube://watch?v=${videoId}`
     setTargetVideo(null)
   }
@@ -318,7 +321,7 @@ export function VideoList({
           isSelected ? 'border-red-500 ring-2 ring-red-500/20' : 'border-gray-100'
         }`}
       >
-        {/* 🎬 サムネイル（タップで開く先選択モーダル表示） */}
+        {/* 🎬 サムネイル */}
         <div
           onClick={() => setTargetVideo({ id: video.id, title: video.title })}
           className="relative aspect-video cursor-pointer group"
@@ -392,7 +395,13 @@ export function VideoList({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              onClick={() => setShowGuide(true)}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-[11px] sm:text-xs px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl transition cursor-pointer"
+            >
+              ❓ 使い方
+            </button>
             <button
               onClick={handleSync}
               disabled={isSyncing}
@@ -836,6 +845,9 @@ export function VideoList({
           </div>
         </div>
       )}
+
+      {/* 📖 使い方ガイドモーダル */}
+      {showGuide && <GuideModal onClose={() => setShowGuide(false)} />}
 
       {/* モーダル群 */}
       {selectedVideosForModal.length > 0 && (
