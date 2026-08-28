@@ -521,7 +521,7 @@ export function VideoList({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="キーワード検索（例: ドッキリ）"
-                className="w-full pl-9 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
+                className="w-full pl-9 pr-8 py-2.5 text-gray-900 bg-white border border-gray-200 rounded-xl text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:bg-white transition"
                 autoFocus
               />
               {searchQuery && (
@@ -614,7 +614,7 @@ export function VideoList({
                   placeholder="マイリスト名を入力"
                   value={newPlaylistTitle}
                   onChange={(e) => setNewPlaylistTitle(e.target.value)}
-                  className="flex-1 px-3 py-1.5 text-base sm:text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="flex-1 px-3 py-1.5 text-base sm:text-xs text-gray-900 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                   autoFocus
                 />
                 <button
@@ -651,7 +651,7 @@ export function VideoList({
                               type="text"
                               value={editingTitle}
                               onChange={(e) => setEditingTitle(e.target.value)}
-                              className="flex-1 px-2 py-1 text-base sm:text-xs border rounded-lg focus:outline-none"
+                              className="flex-1 px-2 py-1 text-base sm:text-xs text-gray-900 bg-white border rounded-lg focus:outline-none"
                               autoFocus
                             />
                             <button

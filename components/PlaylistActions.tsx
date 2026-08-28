@@ -45,7 +45,7 @@ export default function PlaylistActions() {
           placeholder="新しいマイリスト名"
           value={newPlaylistName}
           onChange={(e) => setNewPlaylistName(e.target.value)}
-          className="flex-1 px-3 py-2 border rounded-lg text-sm"
+          className="flex-1 px-3 py-2 text-gray-900 bg-white border rounded-lg text-sm"
         />
         <button
           type="submit"

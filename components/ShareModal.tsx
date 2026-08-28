@@ -61,7 +61,7 @@ export default function ShareModal({ playlist, onClose }: ShareModalProps) {
               type="text"
               readOnly
               value={shareUrl}
-              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-600 outline-none select-all"
+              className="flex-1 text-gray-900 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none select-all"
             />
             <button
               onClick={handleCopy}

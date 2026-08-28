@@ -130,7 +130,7 @@ export function PlaylistCard({ playlist }: PlaylistCardProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={isProcessing}
-              className="flex-1 text-sm font-bold border border-gray-300 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="flex-1 text-sm font-bold text-gray-900 bg-white border border-gray-300 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-500"
               autoFocus
             />
             <button
