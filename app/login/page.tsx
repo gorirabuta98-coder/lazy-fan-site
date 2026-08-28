@@ -3,13 +3,13 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isSignUp, setIsSignUp] = useState(false)
   const supabase = createClient()
   const router = useRouter()
 
@@ -21,14 +21,13 @@ export default function LoginPage() {
     // 1. ゲスト用Cookieを消去
     document.cookie = 'guest_mode=; path=/; max-age=0'
 
-    // 2. ログイン実行
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    // 2. ログインまたは新規登録を実行
+    const { error } = isSignUp
+      ? await supabase.auth.signUp({ email, password })
+      : await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      console.error('ログインエラー:', error)
+      console.error(isSignUp ? '新規登録エラー:' : 'ログインエラー:', error)
       if (error.message.includes('Invalid login credentials')) {
         setErrorMsg('メールアドレスまたはパスワードが正しくありません。')
       } else if (error.message.includes('Email not confirmed')) {
@@ -36,6 +35,12 @@ export default function LoginPage() {
       } else {
         setErrorMsg(`ログイン失敗: ${error.message}`)
       }
+      setLoading(false)
+      return
+    }
+
+    if (isSignUp) {
+      setErrorMsg('登録確認メールを送信しました。メール内のリンクから登録を完了してください。')
       setLoading(false)
       return
     }
@@ -55,9 +60,11 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 max-w-md w-full space-y-6 text-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">ログイン</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{isSignUp ? '新規登録' : 'ログイン'}</h1>
           <p className="text-xs text-gray-500 mt-2">
-            マイリストを保存・管理するにはログインが必要です。
+            {isSignUp
+              ? 'メールアドレスとパスワードを登録してください。'
+              : 'マイリストを保存・管理するにはログインが必要です。'}
           </p>
         </div>
 
@@ -101,14 +108,23 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold rounded-xl text-sm transition cursor-pointer"
           >
-            {loading ? 'ログイン処理中...' : 'ログイン'}
+            {loading
+              ? isSignUp ? '登録処理中...' : 'ログイン処理中...'
+              : isSignUp ? '新規登録' : 'ログイン'}
           </button>
         </form>
 
         <div className="text-xs">
-          <Link href="/signup" className="text-gray-500 hover:underline">
-            アカウントをお持ちでない方はこちら（新規登録）
-          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setIsSignUp(!isSignUp)
+              setErrorMsg('')
+            }}
+            className="text-gray-500 cursor-pointer hover:underline"
+          >
+            {isSignUp ? 'ログインはこちら' : 'アカウントをお持ちでない方はこちら（新規登録）'}
+          </button>
         </div>
 
         <div className="relative flex items-center justify-center my-4">
